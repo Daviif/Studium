@@ -56,8 +56,6 @@ model Subject {
   name        String
   description String?
   period      String?       // Período da matéria no currículo (ex: "1º período", "2º período")
-  professor   String?       // Nome do professor que ministrou a aula
-  semestre    String?       // Semestre que cursou a matéria (ex: "2025/1")
   type        SubjectType   @default(OBRIGATORIA)  // Tipo: Obrigatória, Eletiva, Facultativa
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -66,15 +64,52 @@ model Subject {
   courseId    Int
   course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  // Relação: uma matéria tem muitas tarefas
-  tasks       Task[]
-  
-  // Relação: uma matéria tem muitas rotinas
-  routines    Routine[]
-
-  files       File[]  // Nova relação
+  // Relação: uma matéria tem muitos professores (via ProfessorSubject)
+  professorSubjects ProfessorSubject[]
 
   @@map("subjects")
+}
+
+// ============================================================================
+// PROFESSORES
+// ============================================================================
+model Professor {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação: um professor leciona muitas matérias
+  subjects  ProfessorSubject[]
+
+  @@map("professors")
+}
+
+// ============================================================================
+// PROFESSOR-SUBJECT (Junction Table)
+// ============================================================================
+model ProfessorSubject {
+  id        Int       @id @default(autoincrement())
+  semestre  String    // Semestre que o professor lecionou (ex: "2025/1", "2026/2")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Chaves estrangeiras
+  professorId Int
+  professor   Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  subjectId   Int
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  // Relações: muitas tarefas, rotinas e arquivos
+  tasks       Task[]
+  routines    Routine[]
+  files       File[]
+
+  // Garante que não há duplicatas (mesmo professor não pode lecionar a mesma matéria no mesmo semestre duas vezes)
+  @@unique([professorId, subjectId, semestre])
+  @@map("professor_subjects")
 }
 
 // ============================================================================
@@ -92,9 +127,9 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Chave estrangeira: a qual matéria pertence
-  subjectId   Int
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  // Chave estrangeira: a qual professor-matéria pertence
+  professorSubjectId Int
+  professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)
 
   evaluation  Evaluation?
 
@@ -140,9 +175,9 @@ model Routine {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Chave estrangeira: em qual matéria estudar
-  subjectId   Int
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  // Chave estrangeira: em qual professor-matéria estudar
+  professorSubjectId Int
+  professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)
 
   @@map("routines")
 }
@@ -183,8 +218,8 @@ model File {
   path        String    // caminho no servidor
   url         String?   // URL pública (se hospedado em cloud)
   
-  subjectId   Int
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  professorSubjectId Int
+  professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)
   
   uploadedAt  DateTime  @default(now())
   createdAt   DateTime  @default(now())

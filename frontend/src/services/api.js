@@ -31,6 +31,27 @@ export const coursesApi = {
 };
 
 // ============================================================================
+// PROFESSORES
+// ============================================================================
+export const professorsApi = {
+  list: (token) => api.get('/professors', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  get: (id, token) => api.get(`/professors/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  create: (data, token) => api.post('/professors', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  update: (id, data, token) => api.patch(`/professors/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  delete: (id, token) => api.delete(`/professors/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+};
+
+// ============================================================================
 // MATÉRIAS
 // ============================================================================
 export const subjectsApi = {
@@ -51,6 +72,16 @@ export const subjectsApi = {
   }),
   delete: (id, token) => api.delete(`/subjects/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Professor-Subject
+  getProfessors: (subjectId, token) => api.get(`/subjects/${subjectId}/professors`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  addProfessor: (subjectId, data, token) => api.post(`/subjects/${subjectId}/professors`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  removeProfessor: (subjectId, professorSubjectId, token) => api.delete(`/subjects/${subjectId}/professors/${professorSubjectId}`, {
+    headers: { Authorization: `Bearer ${token}` }
   })
 };
 
@@ -58,6 +89,11 @@ export const subjectsApi = {
 // TAREFAS
 // ============================================================================
 export const tasksApi = {
+  // Novo: aceita professorSubjectId
+  listByProfessor: (professorSubjectId, token) => api.get(`/tasks?professorSubjectId=${professorSubjectId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Antigo: mantém compatibilidade com subjectId
   list: (subjectId, token) => api.get(`/tasks?subjectId=${subjectId}`, {
     headers: { Authorization: `Bearer ${token}` }
   }),
@@ -82,6 +118,11 @@ export const tasksApi = {
 // ROTINAS
 // ============================================================================
 export const routinesApi = {
+  // Novo: aceita professorSubjectId
+  listByProfessor: (professorSubjectId, token) => api.get(`/routines?professorSubjectId=${professorSubjectId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Antigo: mantém compatibilidade com subjectId
   list: (subjectId, token) => api.get(`/routines?subjectId=${subjectId}`, {
     headers: { Authorization: `Bearer ${token}` }
   }),
@@ -97,6 +138,11 @@ export const routinesApi = {
 // ARQUIVOS
 // ============================================================================
 export const filesApi = {
+  // Novo: aceita professorSubjectId
+  listByProfessor: (professorSubjectId, token) => api.get(`/files?professorSubjectId=${professorSubjectId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Antigo: mantém compatibilidade com subjectId
   list: (subjectId, token) => api.get(`/files?subjectId=${subjectId}`, {
     headers: { Authorization: `Bearer ${token}` }
   }),

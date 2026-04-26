@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { coursesApi, subjectsApi } from '../services/api';
 import './CourseDetails.css';
@@ -81,6 +81,27 @@ export default function CourseDetailsPage() {
     }
   };
 
+  const handleDeleteCourse = async () => {
+    if (!window.confirm(`Tem certeza que deseja deletar o curso "${course.name}"? Esta ação não pode ser desfeita e todas as matérias, tarefas e arquivos serão perdidos.`)) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setError('');
+
+      await coursesApi.delete(courseId, token);
+
+      // Redireciona para a página inicial após deletar
+      navigate('/');
+    } catch (err) {
+      console.error('Erro ao deletar curso:', err);
+      const apiMessage = err?.response?.data?.error;
+      setError(apiMessage || 'Erro ao deletar curso. Tente novamente.');
+      setIsSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="course-details-container">
@@ -100,6 +121,16 @@ export default function CourseDetailsPage() {
       </div>
     );
   }
+
+        <button
+          className="delete-course-button"
+          onClick={handleDeleteCourse}
+          type="button"
+          title="Deletar curso"
+          disabled={isSaving}
+        >
+          <Trash2 size={18} />
+        </button>
 
   return (
     <div className="course-details-container">

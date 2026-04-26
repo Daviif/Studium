@@ -114,7 +114,7 @@ function App() {
               <span>Visão Geral</span>
             </button>
 
-            <button className="menu-item" type="button">
+            <button className="menu-item" onClick={() => navigate('/schedule')} type="button">
               <CalendarDays size={18} />
               <span>Cronograma</span>
             </button>
@@ -130,8 +130,8 @@ function App() {
           <div className="profile">
             <div className="avatar">{getInitials(user?.name)}</div>
             <div>
-              <p className="profile-name">{user?.name || 'Usuário'}</p>
-              <p className="profile-role">{user?.email || 'email@example.com'}</p>
+              <p className="profile-name">{user?.name}</p>
+              <p className="profile-role">{user?.email}</p>
             </div>
           </div>
 

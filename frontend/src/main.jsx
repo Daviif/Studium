@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import CourseDetailsPage from './pages/CourseDetailsPage.jsx'
 import SubjectsDetailsPage from './pages/SubjectsDetailsPage.jsx'
+import SchedulePage from './pages/SchedulePage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
 
@@ -38,6 +39,14 @@ createRoot(document.getElementById('root')).render(
             element={
               <ProtectedRoute>
                 <SubjectsDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <SchedulePage />
               </ProtectedRoute>
             }
           />

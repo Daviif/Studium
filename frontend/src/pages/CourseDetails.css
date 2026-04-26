@@ -73,6 +73,32 @@
   box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
 }
 
+.delete-course-button {
+  background: #f5f5f5;
+  color: #e74c3c;
+  border: 1px solid #e0e0e0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-course-button:hover:not(:disabled) {
+  background: #fee;
+  border-color: #e74c3c;
+  color: #c33;
+}
+
+.delete-course-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .error-message {
   background-color: #fee;
   color: #c33;

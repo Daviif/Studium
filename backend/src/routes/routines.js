@@ -3,19 +3,42 @@ const prisma = require('../prisma');
 const router = express.Router();
 
 // ============================================================================
-// GET: Listar rotinas de uma matéria
-// Rota: GET /api/routines?subjectId=1
+// GET: Listar rotinas de um professor-matéria
+// Rota: GET /api/routines?professorSubjectId=1
+// Query params opcionais: subjectId (para compatibilidade)
 // ============================================================================
 router.get('/', async (req, res) => {
   try {
-    const { subjectId } = req.query;
+    const { professorSubjectId, subjectId } = req.query;
 
-    if (!subjectId) {
-      return res.status(400).json({ error: 'subjectId é obrigatório' });
+    if (!professorSubjectId && !subjectId) {
+      return res.status(400).json({ 
+        error: 'professorSubjectId ou subjectId é obrigatório' 
+      });
+    }
+
+    let where = {};
+    
+    if (professorSubjectId) {
+      where = { professorSubjectId: parseInt(professorSubjectId) };
+    } else if (subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!professorSubject) {
+        return res.status(404).json({ 
+          error: 'Nenhum professor encontrado para esta matéria' 
+        });
+      }
+
+      where = { professorSubjectId: professorSubject.id };
     }
 
     const routines = await prisma.routine.findMany({
-      where: { subjectId: parseInt(subjectId) },
+      where,
       orderBy: { dayOfWeek: 'asc' }
     });
 
@@ -29,15 +52,50 @@ router.get('/', async (req, res) => {
 // ============================================================================
 // POST: Criar nova rotina
 // Rota: POST /api/routines
-// Body: { "dayOfWeek": "SEGUNDA", "startTime": "14:30", "duration": 90, "activity": "Revisar slides", "subjectId": 1 }
+// Body: { "dayOfWeek": "SEGUNDA", "startTime": "14:30", "duration": 90, "activity": "Revisar slides", "professorSubjectId": 1 }
 // ============================================================================
 router.post('/', async (req, res) => {
   try {
-    const { dayOfWeek, startTime, duration, activity, subjectId } = req.body;
+    const { dayOfWeek, startTime, duration, activity, professorSubjectId, subjectId } = req.body;
 
-    if (!dayOfWeek || !startTime || !duration || !activity || !subjectId) {
+    // Priorizar professorSubjectId
+    let finalProfessorSubjectId = professorSubjectId;
+
+    if (!dayOfWeek || !startTime || !duration || !activity) {
       return res.status(400).json({ 
-        error: 'dayOfWeek, startTime, duration, activity e subjectId são obrigatórios' 
+        error: 'dayOfWeek, startTime, duration e activity são obrigatórios' 
+      });
+    }
+
+    if (!finalProfessorSubjectId && subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) }
+      });
+
+      if (!professorSubject) {
+        return res.status(400).json({ 
+          error: 'Nenhum professor encontrado para esta matéria. Use professorSubjectId.' 
+        });
+      }
+
+      finalProfessorSubjectId = professorSubject.id;
+    }
+
+    if (!finalProfessorSubjectId) {
+      return res.status(400).json({ 
+        error: 'professorSubjectId é obrigatório' 
+      });
+    }
+
+    // Verificar se o professorSubject existe
+    const professorSubject = await prisma.professorSubject.findUnique({
+      where: { id: parseInt(finalProfessorSubjectId) }
+    });
+
+    if (!professorSubject) {
+      return res.status(404).json({ 
+        error: 'Professor-Matéria não encontrado' 
       });
     }
 
@@ -47,7 +105,7 @@ router.post('/', async (req, res) => {
         startTime,
         duration: parseInt(duration),
         activity,
-        subjectId: parseInt(subjectId)
+        professorSubjectId: parseInt(finalProfessorSubjectId)
       }
     });
 

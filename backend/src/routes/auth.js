@@ -123,14 +123,26 @@ router.post('/login', async (req, res) => {
 // Rota: GET /api/auth/profile
 // Headers: Authorization: Bearer <token>
 // ============================================================================
-router.get('/profile', (req, res) => {
-  // Este middleware será adicionado nas rotas
+router.get('/profile', async (req, res) => {
   try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
     res.json({
-      id: req.userId,
-      email: req.userEmail
+      user
     });
   } catch (error) {
+    console.error('Erro ao buscar perfil:', error);
     res.status(500).json({ error: 'Erro ao buscar perfil' });
   }
 });

@@ -15,7 +15,12 @@ router.get('/', async (req, res) => {
       include: {
         subjects: {
           include: {
-            tasks: true
+            professorSubjects: {
+              include: {
+                professor: true,
+                tasks: true
+              }
+            }
           }
         }
       }
@@ -41,8 +46,13 @@ router.get('/:id', async (req, res) => {
       include: {
         subjects: {
           include: {
-            tasks: true,
-            routines: true
+            professorSubjects: {
+              include: {
+                professor: true,
+                tasks: true,
+                routines: true
+              }
+            }
           }
         }
       }

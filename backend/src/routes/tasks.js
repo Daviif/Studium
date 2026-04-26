@@ -3,19 +3,45 @@ const prisma = require('../prisma');
 const router = express.Router();
 
 // ============================================================================
-// GET: Listar tarefas de uma matéria
-// Rota: GET /api/tasks?subjectId=1
+// GET: Listar tarefas de um professor-matéria
+// Rota: GET /api/tasks?professorSubjectId=1
+// Query params opcionais: subjectId (para compatibilidade)
 // ============================================================================
 router.get('/', async (req, res) => {
   try {
-    const { subjectId } = req.query;
+    const { professorSubjectId, subjectId } = req.query;
 
-    if (!subjectId) {
-      return res.status(400).json({ error: 'subjectId é obrigatório' });
+    // Priorizar professorSubjectId, mas aceitar subjectId para compatibilidade
+    if (!professorSubjectId && !subjectId) {
+      return res.status(400).json({ 
+        error: 'professorSubjectId ou subjectId é obrigatório' 
+      });
+    }
+
+    let where = {};
+    
+    if (professorSubjectId) {
+      where = { professorSubjectId: parseInt(professorSubjectId) };
+    } else if (subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      // Isso é para compatibilidade com código antigo
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!professorSubject) {
+        return res.status(404).json({ 
+          error: 'Nenhum professor encontrado para esta matéria' 
+        });
+      }
+
+      where = { professorSubjectId: professorSubject.id };
     }
 
     const tasks = await prisma.task.findMany({
-      where: { subjectId: parseInt(subjectId) },
+      where,
+      include: { evaluation: true },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -53,15 +79,50 @@ router.get('/:id', async (req, res) => {
 // ============================================================================
 // POST: Criar nova tarefa
 // Rota: POST /api/tasks
-// Body: { "title": "Exercício 1", "type": "ATIVIDADE", "subjectId": 1 }
+// Body: { "title": "Exercício 1", "type": "ATIVIDADE", "professorSubjectId": 1 }
 // ============================================================================
 router.post('/', async (req, res) => {
   try {
-    const { title, description, type, weight, dueDate, priority, subjectId } = req.body;
+    const { title, description, type, weight, dueDate, priority, professorSubjectId, subjectId } = req.body;
 
-    if (!title || !subjectId) {
+    // Priorizar professorSubjectId, mas aceitar subjectId para compatibilidade
+    let finalProfessorSubjectId = professorSubjectId;
+
+    if (!finalProfessorSubjectId && !title) {
       return res.status(400).json({ 
-        error: 'title e subjectId são obrigatórios' 
+        error: 'title é obrigatório' 
+      });
+    }
+
+    if (!finalProfessorSubjectId && subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) }
+      });
+
+      if (!professorSubject) {
+        return res.status(400).json({ 
+          error: 'Nenhum professor encontrado para esta matéria. Use professorSubjectId.' 
+        });
+      }
+
+      finalProfessorSubjectId = professorSubject.id;
+    }
+
+    if (!finalProfessorSubjectId) {
+      return res.status(400).json({ 
+        error: 'professorSubjectId é obrigatório' 
+      });
+    }
+
+    // Verificar se o professorSubject existe
+    const professorSubject = await prisma.professorSubject.findUnique({
+      where: { id: parseInt(finalProfessorSubjectId) }
+    });
+
+    if (!professorSubject) {
+      return res.status(404).json({ 
+        error: 'Professor-Matéria não encontrado' 
       });
     }
 
@@ -73,8 +134,9 @@ router.post('/', async (req, res) => {
         weight: weight || 1.0,
         dueDate: dueDate ? new Date(dueDate) : null,
         priority: priority || 'MEDIA',
-        subjectId: parseInt(subjectId)
-      }
+        professorSubjectId: parseInt(finalProfessorSubjectId)
+      },
+      include: { evaluation: true }
     });
 
     res.status(201).json(task);

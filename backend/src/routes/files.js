@@ -8,7 +8,7 @@ const prisma = require('../prisma');
 // ============================================================================
 // POST: Fazer upload de arquivo
 // Rota: POST /api/files/upload
-// FormData: { "file": <arquivo>, "subjectId": 1 }
+// FormData: { "file": <arquivo>, "professorSubjectId": 1 }
 // ============================================================================
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -16,22 +16,42 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum arquivo foi enviado' });
     }
 
-    const { subjectId, customName } = req.body;
+    const { professorSubjectId, subjectId, customName } = req.body;
 
-    if (!subjectId) {
-      // Deleta arquivo se subjectId não foi fornecido
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'subjectId é obrigatório' });
+    // Priorizar professorSubjectId
+    let finalProfessorSubjectId = professorSubjectId;
+
+    if (!finalProfessorSubjectId && subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) }
+      });
+
+      if (!professorSubject) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ 
+          error: 'Nenhum professor encontrado para esta matéria. Use professorSubjectId.' 
+        });
+      }
+
+      finalProfessorSubjectId = professorSubject.id;
     }
 
-    // Verifica se matéria existe
-    const subject = await prisma.subject.findUnique({
-      where: { id: parseInt(subjectId) }
+    if (!finalProfessorSubjectId) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ 
+        error: 'professorSubjectId é obrigatório' 
+      });
+    }
+
+    // Verifica se professorSubject existe
+    const professorSubject = await prisma.professorSubject.findUnique({
+      where: { id: parseInt(finalProfessorSubjectId) }
     });
 
-    if (!subject) {
+    if (!professorSubject) {
       fs.unlinkSync(req.file.path);
-      return res.status(404).json({ error: 'Matéria não encontrada' });
+      return res.status(404).json({ error: 'Professor-Matéria não encontrado' });
     }
 
     // Define o nome: customName se fornecido, caso contrário usa o original
@@ -46,7 +66,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         size: req.file.size,
         path: req.file.path,
         url: `/api/files/download/${req.file.filename}`,
-        subjectId: parseInt(subjectId)
+        professorSubjectId: parseInt(finalProfessorSubjectId)
       }
     });
 
@@ -70,19 +90,42 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 // ============================================================================
-// GET: Listar arquivos de uma matéria
-// Rota: GET /api/files?subjectId=1
+// GET: Listar arquivos de um professor-matéria
+// Rota: GET /api/files?professorSubjectId=1
+// Query params opcionais: subjectId (para compatibilidade)
 // ============================================================================
 router.get('/', async (req, res) => {
   try {
-    const { subjectId } = req.query;
+    const { professorSubjectId, subjectId } = req.query;
 
-    if (!subjectId) {
-      return res.status(400).json({ error: 'subjectId é obrigatório' });
+    if (!professorSubjectId && !subjectId) {
+      return res.status(400).json({ 
+        error: 'professorSubjectId ou subjectId é obrigatório' 
+      });
+    }
+
+    let where = {};
+    
+    if (professorSubjectId) {
+      where = { professorSubjectId: parseInt(professorSubjectId) };
+    } else if (subjectId) {
+      // Se fornecido apenas subjectId, buscar o primeiro professorSubject
+      const professorSubject = await prisma.professorSubject.findFirst({
+        where: { subjectId: parseInt(subjectId) },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!professorSubject) {
+        return res.status(404).json({ 
+          error: 'Nenhum professor encontrado para esta matéria' 
+        });
+      }
+
+      where = { professorSubjectId: professorSubject.id };
     }
 
     const files = await prisma.file.findMany({
-      where: { subjectId: parseInt(subjectId) },
+      where,
       orderBy: { uploadedAt: 'desc' }
     });
 

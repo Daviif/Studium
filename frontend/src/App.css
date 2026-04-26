@@ -82,6 +82,7 @@
   align-items: center;
   gap: 12px;
   flex: 1;
+  min-width: 0;
 }
 
 .profile-section {
@@ -90,6 +91,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .logout-button {
@@ -130,12 +132,18 @@
   line-height: 1.1;
   color: #f0f4ff;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-role {
   margin: 2px 0 0;
-  font-size: 15px;
+  font-size: 12px;
   color: #758db4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .main {
