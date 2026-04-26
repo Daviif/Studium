@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// USUÁRIOS
+// ============================================================================
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação: um usuário tem muitos cursos
+  courses   Course[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// CURSOS
+// ============================================================================
+model Course {
+  id          Int       @id @default(autoincrement())
+  name        String
+  university  String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Chave estrangeira: qual usuário criou este curso
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relação: um curso tem muitas matérias
+  subjects    Subject[]
+
+  @@map("courses")
+}
+
+// ============================================================================
+// MATÉRIAS
+// ============================================================================
+model Subject {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  period      String?       // Período da matéria no currículo (ex: "1º período", "2º período")
+  professor   String?       // Nome do professor que ministrou a aula
+  semestre    String?       // Semestre que cursou a matéria (ex: "2025/1")
+  type        SubjectType   @default(OBRIGATORIA)  // Tipo: Obrigatória, Eletiva, Facultativa
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Chave estrangeira: a qual curso pertence esta matéria
+  courseId    Int
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Relação: uma matéria tem muitas tarefas
+  tasks       Task[]
+  
+  // Relação: uma matéria tem muitas rotinas
+  routines    Routine[]
+
+  files       File[]  // Nova relação
+
+  @@map("subjects")
+}
+
+// ============================================================================
+// TAREFAS (Atividades, Trabalhos, Provas)
+// ============================================================================
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  type        TaskType  @default(ATIVIDADE)
+  completed   Boolean   @default(false)
+  weight      Float     @default(1.0)    // peso da tarefa
+  dueDate     DateTime?
+  priority    Priority  @default(MEDIA)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Chave estrangeira: a qual matéria pertence
+  subjectId   Int
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  evaluation  Evaluation?
+
+  @@map("tasks")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+// Tipos de matérias
+enum SubjectType {
+  OBRIGATORIA
+  ELETIVA
+  OPTATIVA
+  FACULTATIVA
+  EXTENSAO
+}
+
+// Tipos de tarefas
+enum TaskType {
+  ATIVIDADE
+  TRABALHO
+  PROVA
+}
+
+// Prioridade
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+// ============================================================================
+// ROTINAS (Agendas de Estudo)
+// ============================================================================
+model Routine {
+  id          Int       @id @default(autoincrement())
+  dayOfWeek   DayOfWeek
+  startTime   String    // "14:30"
+  duration    Int       // em minutos (ex: 90)
+  activity    String    // "Revisar slides"
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Chave estrangeira: em qual matéria estudar
+  subjectId   Int
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@map("routines")
+}
+
+// Dias da semana
+enum DayOfWeek {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+  DOMINGO
+}
+
+model Evaluation {
+  id          Int       @id @default(autoincrement())
+  taskId      Int       @unique
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  grade       Float                 // Nota obtida (ex: 8.5)
+  maxGrade    Float     @default(10)  // Nota máxima (ex: 10)
+  weight      Float     @default(1.0)  // Peso da avaliação (ex: 30%)
+  
+  evaluatedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("evaluations")
+}
+
+model File {
+  id          Int       @id @default(autoincrement())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int       // em bytes
+  path        String    // caminho no servidor
+  url         String?   // URL pública (se hospedado em cloud)
+  
+  subjectId   Int
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  uploadedAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@map("files")
+
+}
