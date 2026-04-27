@@ -6,9 +6,38 @@ const prisma = require('./prisma');
 const app = express();
 
 // ============================================================================
-// MIDDLEWARE
+// CONFIGURAÇÃO CORS
 // ============================================================================
-app.use(cors());
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',      // Dev local (Vite)
+  'http://localhost:3000',      // Dev alternativo
+  'http://127.0.0.1:5173',      // Dev local (IP)
+  'https://study-hub-delta-roan.vercel.app',  // Vercel production
+  'https://*.vercel.app',       // Outros deploys Vercel
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir requisições sem origin (como mobile apps, Postman, etc)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      // Verificar se é um deploy Vercel
+      if (origin && origin.includes('vercel.app')) {
+        callback(null, true);
+      } else {
+        console.warn(`❌ Origem não permitida: ${origin}`);
+        callback(new Error('CORS não permitido para esta origem'));
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // ============================================================================
