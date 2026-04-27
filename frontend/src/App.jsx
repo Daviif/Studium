@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { coursesApi } from './services/api';
 import { useAuth } from './contexts/AuthContext';
+import initDebugInfo from './utils/debugInfo';
 import './App.css';
 
 function App() {
@@ -27,6 +28,11 @@ function App() {
     name: '',
     university: '',
   });
+
+  // Inicializar debug info ao montar o componente
+  useEffect(() => {
+    initDebugInfo();
+  }, []);
 
   const handleLogout = () => {
     logout();

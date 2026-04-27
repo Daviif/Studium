@@ -37,7 +37,7 @@ export default function CourseDetailsPage() {
 
       // Carrega matérias do curso
       const subjectsResponse = await subjectsApi.list(courseId, token);
-      setSubjects(subjectsResponse.data || []);
+      setSubjects(Array.isArray(subjectsResponse.data) ? subjectsResponse.data : []);
     } catch (err) {
       console.error('Erro ao carregar curso:', err);
       setError('Não foi possível carregar o curso');

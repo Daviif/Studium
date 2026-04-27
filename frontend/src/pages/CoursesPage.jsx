@@ -29,10 +29,12 @@ export default function CoursesPage() {
       setLoading(true);
       setErrorMessage('');
       const response = await coursesApi.list(token);
-      setCourses(response.data || []);
+      const coursesData = Array.isArray(response.data) ? response.data : [];
+      setCourses(coursesData);
     } catch (error) {
       setErrorMessage('Não foi possível carregar os cursos agora.');
       console.error('Erro ao carregar cursos:', error);
+      setCourses([]);
     } finally {
       setLoading(false);
     }

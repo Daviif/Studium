@@ -74,18 +74,21 @@ export default function SubjectDetailsPage() {
 
       // Carrega tarefas do professor-matéria
       const tasksResponse = await tasksApi.listByProfessor(selectedProfessorSubject.id, token);
-      setTasks(tasksResponse.data || []);
+      setTasks(Array.isArray(tasksResponse.data) ? tasksResponse.data : []);
 
       // Carrega arquivos do professor-matéria
       const filesResponse = await filesApi.listByProfessor(selectedProfessorSubject.id, token);
-      setFiles(filesResponse.data || []);
+      setFiles(Array.isArray(filesResponse.data) ? filesResponse.data : []);
 
       // Carrega rotinas do professor-matéria
       const routinesResponse = await routinesApi.listByProfessor(selectedProfessorSubject.id, token);
-      setRoutines(routinesResponse.data || []);
+      setRoutines(Array.isArray(routinesResponse.data) ? routinesResponse.data : []);
     } catch (err) {
       console.error('Erro ao carregar dados do professor:', err);
       setError('Não foi possível carregar os dados deste professor');
+      setTasks([]);
+      setFiles([]);
+      setRoutines([]);
     } finally {
       setLoading(false);
     }

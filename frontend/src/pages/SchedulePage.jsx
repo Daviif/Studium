@@ -29,7 +29,7 @@ export default function SchedulePage() {
 
       // Carregar cursos
       const coursesResponse = await coursesApi.list(token);
-      setCourses(coursesResponse.data || []);
+      setCourses(Array.isArray(coursesResponse.data) ? coursesResponse.data : []);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Não foi possível carregar o cronograma');

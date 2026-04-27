@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const prisma = require('../prisma');
+const authenticateToken = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sua-chave-secreta';
 const JWT_EXPIRES_IN = '7d'; // Token válido por 7 dias
@@ -123,7 +124,7 @@ router.post('/login', async (req, res) => {
 // Rota: GET /api/auth/profile
 // Headers: Authorization: Bearer <token>
 // ============================================================================
-router.get('/profile', async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
@@ -153,7 +154,7 @@ router.get('/profile', async (req, res) => {
 // Headers: Authorization: Bearer <token>
 // Body: { "name": "Novo Nome" }
 // ============================================================================
-router.patch('/profile', async (req, res) => {
+router.patch('/profile', authenticateToken, async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -189,7 +190,7 @@ router.patch('/profile', async (req, res) => {
 // Headers: Authorization: Bearer <token>
 // Body: { "currentPassword": "123456", "newPassword": "nova123456" }
 // ============================================================================
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
