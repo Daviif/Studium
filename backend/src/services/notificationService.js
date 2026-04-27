@@ -1,7 +1,6 @@
 const nodemailer = require('nodemailer');
 const prisma = require('../prisma');
 
-
 // ============================================================================
 // CONFIGURAÇÃO NODEMAILER
 // ============================================================================
@@ -353,7 +352,6 @@ async function checkAndNotifyUpcomingTasks() {
 module.exports = {
   // Funções de envio
   sendEmail,
-  sendSMS,
   createInAppNotification,
   markAsRead,
 
