@@ -13,7 +13,8 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',      // Dev alternativo
   'http://127.0.0.1:5173',      // Dev local (IP)
   'https://study-hub-delta-roan.vercel.app',  // Vercel production
-  'https://*.vercel.app',       // Outros deploys Vercel
+  'https://*.vercel.app', // Outros deploys Vercel
+  'https://studyhub-production-06a4.up.railway.app'      
 ];
 
 const corsOptions = {
@@ -46,6 +47,7 @@ app.use(express.json());
 
 // HEALTH CHECK
 app.get('/api/health', (req, res) => {
+  console.log('✅ Health check requisitado');
   res.json({ status: 'OK', message: 'Backend está funcionando' });
 });
 
