@@ -147,4 +147,98 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// ============================================================================
+// PATCH: Atualizar perfil do usuário (requer autenticação)
+// Rota: PATCH /api/auth/profile
+// Headers: Authorization: Bearer <token>
+// Body: { "name": "Novo Nome" }
+// ============================================================================
+router.patch('/profile', async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nome não pode estar vazio' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        name: name.trim()
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    });
+
+    res.json({
+      message: 'Perfil atualizado com sucesso',
+      user
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+});
+
+// ============================================================================
+// POST: Mudar senha do usuário (requer autenticação)
+// Rota: POST /api/auth/change-password
+// Headers: Authorization: Bearer <token>
+// Body: { "currentPassword": "123456", "newPassword": "nova123456" }
+// ============================================================================
+router.post('/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        error: 'Senha atual e nova senha são obrigatórias' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        error: 'Nova senha deve ter no mínimo 6 caracteres' 
+      });
+    }
+
+    // Busca usuário
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    // Compara senhas
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+
+    // Hash da nova senha
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Atualiza senha
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        password: hashedPassword
+      }
+    });
+
+    res.json({
+      message: 'Senha alterada com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao alterar senha:', error);
+    res.status(500).json({ error: 'Erro ao alterar senha' });
+  }
+});
+
 module.exports = router;

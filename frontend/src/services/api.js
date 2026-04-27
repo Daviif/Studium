@@ -157,4 +157,21 @@ export const filesApi = {
   })
 };
 
+// ============================================================================
+// AUTENTICAÇÃO
+// ============================================================================
+export const authApi = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  profile: (token) => api.get('/auth/profile', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  updateProfile: (data, token) => api.patch('/auth/profile', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  changePassword: (data, token) => api.post('/auth/change-password', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+};
+
 export default api;

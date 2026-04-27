@@ -113,7 +113,7 @@ export default function CourseDetailsPage() {
   if (!course) {
     return (
       <div className="course-details-container">
-        <button className="back-button" onClick={() => navigate('/')}>
+        <button className="back-button" onClick={() => navigate('/courses')}>
           <ArrowLeft size={20} />
           Voltar
         </button>
@@ -135,7 +135,7 @@ export default function CourseDetailsPage() {
   return (
     <div className="course-details-container">
       <div className="course-details-header">
-        <button className="back-button" onClick={() => navigate('/')} title="Voltar">
+        <button className="back-button" onClick={() => navigate('/courses')} title="Voltar">
           <ArrowLeft size={20} />
         </button>
 

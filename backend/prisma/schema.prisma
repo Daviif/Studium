@@ -23,7 +23,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relação: um usuário tem muitos cursos
-  courses   Course[]
+  courses                Course[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  pushSubscription String?
 
   @@map("users")
 }
@@ -32,18 +35,21 @@ model User {
 // CURSOS
 // ============================================================================
 model Course {
-  id          Int       @id @default(autoincrement())
-  name        String
-  university  String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id         Int      @id @default(autoincrement())
+  name       String
+  university String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   // Chave estrangeira: qual usuário criou este curso
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Relação: um curso tem muitas matérias
-  subjects    Subject[]
+  subjects                 Subject[]
+  notifications            Notification[]
+  notificationPreference   NotificationPreference? @relation(fields: [notificationPreferenceId], references: [id])
+  notificationPreferenceId Int?
 
   @@map("courses")
 }
@@ -52,17 +58,17 @@ model Course {
 // MATÉRIAS
 // ============================================================================
 model Subject {
-  id          Int           @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String?
-  period      String?       // Período da matéria no currículo (ex: "1º período", "2º período")
-  type        SubjectType   @default(OBRIGATORIA)  // Tipo: Obrigatória, Eletiva, Facultativa
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  period      String? // Período da matéria no currículo (ex: "1º período", "2º período")
+  type        SubjectType @default(OBRIGATORIA) // Tipo: Obrigatória, Eletiva, Facultativa
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   // Chave estrangeira: a qual curso pertence esta matéria
-  courseId    Int
-  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // Relação: uma matéria tem muitos professores (via ProfessorSubject)
   professorSubjects ProfessorSubject[]
@@ -81,7 +87,7 @@ model Professor {
   updatedAt DateTime @updatedAt
 
   // Relação: um professor leciona muitas matérias
-  subjects  ProfessorSubject[]
+  subjects ProfessorSubject[]
 
   @@map("professors")
 }
@@ -90,22 +96,22 @@ model Professor {
 // PROFESSOR-SUBJECT (Junction Table)
 // ============================================================================
 model ProfessorSubject {
-  id        Int       @id @default(autoincrement())
-  semestre  String    // Semestre que o professor lecionou (ex: "2025/1", "2026/2")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  semestre  String // Semestre que o professor lecionou (ex: "2025/1", "2026/2")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Chaves estrangeiras
   professorId Int
   professor   Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
 
-  subjectId   Int
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   // Relações: muitas tarefas, rotinas e arquivos
-  tasks       Task[]
-  routines    Routine[]
-  files       File[]
+  tasks    Task[]
+  routines Routine[]
+  files    File[]
 
   // Garante que não há duplicatas (mesmo professor não pode lecionar a mesma matéria no mesmo semestre duas vezes)
   @@unique([professorId, subjectId, semestre])
@@ -121,7 +127,7 @@ model Task {
   description String?
   type        TaskType  @default(ATIVIDADE)
   completed   Boolean   @default(false)
-  weight      Float     @default(1.0)    // peso da tarefa
+  weight      Float     @default(1.0) // peso da tarefa
   dueDate     DateTime?
   priority    Priority  @default(MEDIA)
   createdAt   DateTime  @default(now())
@@ -131,7 +137,9 @@ model Task {
   professorSubjectId Int
   professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)
 
-  evaluation  Evaluation?
+  evaluation    Evaluation?
+  notifications Notification[]
+  notifiedAt DateTime? // Quando foi notificado pela última vez
 
   @@map("tasks")
 }
@@ -167,13 +175,13 @@ enum Priority {
 // ROTINAS (Agendas de Estudo)
 // ============================================================================
 model Routine {
-  id          Int       @id @default(autoincrement())
-  dayOfWeek   DayOfWeek
-  startTime   String    // "14:30"
-  duration    Int       // em minutos (ex: 90)
-  activity    String    // "Revisar slides"
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int       @id @default(autoincrement())
+  dayOfWeek DayOfWeek
+  startTime String // "14:30"
+  duration  Int // em minutos (ex: 90)
+  activity  String // "Revisar slides"
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Chave estrangeira: em qual professor-matéria estudar
   professorSubjectId Int
@@ -194,36 +202,87 @@ enum DayOfWeek {
 }
 
 model Evaluation {
-  id          Int       @id @default(autoincrement())
-  taskId      Int       @unique
-  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
-  grade       Float                 // Nota obtida (ex: 8.5)
-  maxGrade    Float     @default(10)  // Nota máxima (ex: 10)
-  weight      Float     @default(1.0)  // Peso da avaliação (ex: 30%)
-  
-  evaluatedAt DateTime  @default(now())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id     Int  @id @default(autoincrement())
+  taskId Int  @unique
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  grade    Float // Nota obtida (ex: 8.5)
+  maxGrade Float @default(10) // Nota máxima (ex: 10)
+  weight   Float @default(1.0) // Peso da avaliação (ex: 30%)
+
+  evaluatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("evaluations")
 }
 
+// ============================================================================
+// ARQUIVOS
+// ============================================================================
 model File {
-  id          Int       @id @default(autoincrement())
-  filename    String
+  id           Int     @id @default(autoincrement())
+  filename     String
   originalName String
-  mimeType    String
-  size        Int       // em bytes
-  path        String    // caminho no servidor
-  url         String?   // URL pública (se hospedado em cloud)
-  
+  mimeType     String
+  size         Int // em bytes
+  path         String // caminho no servidor
+  url          String? // URL pública (se hospedado em cloud)
+
   professorSubjectId Int
   professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)
-  
-  uploadedAt  DateTime  @default(now())
-  createdAt   DateTime  @default(now())
+
+  uploadedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@map("files")
+}
 
+// ============================================================================
+// NOTIFICAÇÕES
+// ============================================================================
+
+model Notification {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  taskId Int? // ← IMPORTANTE
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  title String
+  body  String
+  read  Boolean @default(false)
+  readAt    DateTime?
+
+  // ← NOVO: Tipo de notificação
+  type String @default("task_due_soon") // task_due_soon, task_created, etc
+
+  createdAt DateTime @default(now())
+  course    Course?  @relation(fields: [courseId], references: [id])
+  courseId  Int?
+
+  @@index([userId])
+  @@index([taskId])
+}
+
+model NotificationPreference {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  inAppNotifications Boolean @default(true)
+
+  // Em quantos dias antes notificar?
+  notifyDaysBefore Int @default(2)
+
+  // Só notificar em certos horários?
+  quietHoursStart Int? // 23 = 23h
+  quietHoursEnd   Int? // 8 = 8h
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  courses   Course[]
 }

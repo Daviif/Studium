@@ -29,6 +29,9 @@ const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const professorsRouter = require('./routes/professors');
 const path = require('path');
+const { startJobs } = require('./jobs');
+
+startJobs();
 
 // MIDDLEWARE DE AUTENTICAÇÃO
 const authenticateToken = (req, res, next) => {
@@ -66,6 +69,7 @@ app.use('/api/tasks', authenticateToken, tasksRouter);
 app.use('/api/routines', authenticateToken, routinesRouter);
 app.use('/api/files', authenticateToken, filesRouter);
 app.use('/api/professors', authenticateToken, professorsRouter);
+app.use('/api/notifications', authenticateToken, require('./routes/notifications'));
 // ============================================================================
 // INICIAR SERVIDOR
 // ============================================================================
