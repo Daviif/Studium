@@ -12,8 +12,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',      // Dev local (Vite)
   'http://localhost:3000',      // Dev alternativo
   'http://127.0.0.1:5173',      // Dev local (IP)
-  'https://study-hub-delta-roan.vercel.app',  // Vercel production
-  'https://*.vercel.app', // Outros deploys Vercel
+   // Outros deploys Vercel
   'https://studyhub-production-06a4.up.railway.app'      
 ];
 
