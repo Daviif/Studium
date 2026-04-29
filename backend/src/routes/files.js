@@ -1,9 +1,34 @@
 const express = require('express');
 const upload = require('../middleware/upload');
-const path = require('path');
-const fs = require('fs');
 const router = express.Router();
 const prisma = require('../prisma');
+const cloudinary = require('cloudinary').v2;
+const { Readable } = require('stream');
+
+
+if (!process.env.CLOUDINARY_CLOUD_NAME) {
+  console.error('❌ ERRO: CLOUDINARY_CLOUD_NAME não está definido!');
+  console.error('   Verifique se .env existe e tem esta variável');
+}
+if (!process.env.CLOUDINARY_API_KEY) {
+  console.error('❌ ERRO: CLOUDINARY_API_KEY não está definido!');
+}
+if (!process.env.CLOUDINARY_API_SECRET) {
+  console.error('❌ ERRO: CLOUDINARY_API_SECRET não está definido!');
+}
+
+console.log('✅ Variáveis carregadas:');
+console.log('  CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('  API_KEY:', process.env.CLOUDINARY_API_KEY);
+console.log('  API_SECRET:', process.env.CLOUDINARY_API_SECRET?.substring(0, 10) + '...');
+
+
+// Configurar Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // ============================================================================
 // POST: Fazer upload de arquivo
@@ -28,7 +53,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       });
 
       if (!professorSubject) {
-        fs.unlinkSync(req.file.path);
         return res.status(400).json({ 
           error: 'Nenhum professor encontrado para esta matéria. Use professorSubjectId.' 
         });
@@ -38,7 +62,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     if (!finalProfessorSubjectId) {
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({ 
         error: 'professorSubjectId é obrigatório' 
       });
@@ -50,22 +73,42 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     });
 
     if (!professorSubject) {
-      fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: 'Professor-Matéria não encontrado' });
     }
 
     // Define o nome: customName se fornecido, caso contrário usa o original
     const displayName = customName && customName.trim() ? customName.trim() : req.file.originalname;
 
+    // Upload manual para Cloudinary usando o buffer do arquivo
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: process.env.CLOUDINARY_FOLDER || 'studyhub_files',
+          resource_type: 'auto',
+          use_filename: true,
+          unique_filename: true
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+
+      // Converter buffer em stream e enviar para Cloudinary
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+
+    const fileUrl = uploadResult.secure_url;
+    const cloudinaryId = uploadResult.public_id;
+
     // Salva arquivo no banco de dados
     const file = await prisma.file.create({
       data: {
-        filename: req.file.filename,
-        originalName: displayName,
+        name: displayName,
+        url: fileUrl,
         mimeType: req.file.mimetype,
         size: req.file.size,
-        path: req.file.path,
-        url: `/api/files/download/${req.file.filename}`,
+        cloudinaryId: cloudinaryId, // ID do arquivo no Cloudinary para deletar depois
         professorSubjectId: parseInt(finalProfessorSubjectId)
       }
     });
@@ -74,7 +117,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       message: 'Arquivo enviado com sucesso',
       file: {
         id: file.id,
-        filename: file.originalName,
+        name: file.name,
         size: file.size,
         url: file.url,
         uploadedAt: file.uploadedAt
@@ -82,10 +125,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao fazer upload:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
-    res.status(500).json({ error: 'Erro ao fazer upload' });
+    res.status(500).json({ error: 'Erro ao fazer upload: ' + error.message });
   }
 });
 
@@ -137,24 +177,23 @@ router.get('/', async (req, res) => {
 });
 
 // ============================================================================
-// GET: Download de arquivo
-// Rota: GET /api/files/download/:filename
+// GET: Download/Redirect para arquivo no Cloudinary
+// Rota: GET /api/files/download/:id
 // ============================================================================
-router.get('/download/:filename', (req, res) => {
+router.get('/download/:id', async (req, res) => {
   try {
-    const { filename } = req.params;
-    const filepath = path.join(__dirname, '../uploads', filename);
+    const { id } = req.params;
 
-    // Segurança: previne path traversal
-    if (!filepath.startsWith(path.join(__dirname, '../uploads'))) {
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
+    const file = await prisma.file.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!fs.existsSync(filepath)) {
+    if (!file) {
       return res.status(404).json({ error: 'Arquivo não encontrado' });
     }
 
-    res.download(filepath);
+    // Redireciona para a URL do Cloudinary
+    res.redirect(file.url);
   } catch (error) {
     console.error('Erro ao fazer download:', error);
     res.status(500).json({ error: 'Erro ao fazer download' });
@@ -162,7 +201,7 @@ router.get('/download/:filename', (req, res) => {
 });
 
 // ============================================================================
-// DELETE: Deletar arquivo
+// DELETE: Deletar arquivo (Cloudinary + Database)
 // Rota: DELETE /api/files/:id
 // ============================================================================
 router.delete('/:id', async (req, res) => {
@@ -177,9 +216,15 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Arquivo não encontrado' });
     }
 
-    // Deleta do disco
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    // Deleta do Cloudinary usando o cloudinaryId
+    if (file.cloudinaryId) {
+      try {
+        await cloudinary.uploader.destroy(file.cloudinaryId);
+        console.log(`✅ Arquivo deletado do Cloudinary: ${file.cloudinaryId}`);
+      } catch (cloudinaryError) {
+        console.warn(`⚠️ Erro ao deletar do Cloudinary: ${cloudinaryError.message}`);
+        // Continua mesmo se falhar no Cloudinary
+      }
     }
 
     // Deleta do banco
@@ -190,7 +235,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Arquivo deletado com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar arquivo:', error);
-    res.status(500).json({ error: 'Erro ao deletar arquivo' });
+    res.status(500).json({ error: 'Erro ao deletar arquivo: ' + error.message });
   }
 });
 

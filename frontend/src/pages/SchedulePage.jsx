@@ -29,7 +29,48 @@ export default function SchedulePage() {
 
       // Carregar cursos
       const coursesResponse = await coursesApi.list(token);
-      setCourses(Array.isArray(coursesResponse.data) ? coursesResponse.data : []);
+      const coursesData = Array.isArray(coursesResponse.data) ? coursesResponse.data : [];
+      setCourses(coursesData);
+
+      // Carregar todas as tarefas e rotinas de todas as matérias
+      const allTasks = [];
+      const allRoutines = [];
+
+      for (const course of coursesData) {
+        try {
+          // Buscar matérias do curso
+          const subjectsResponse = await subjectsApi.list(course.id, token);
+          const subjects = Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
+
+          // Para cada matéria, buscar tarefas e rotinas de cada professor
+          for (const subject of subjects) {
+            if (subject.professorSubjects && Array.isArray(subject.professorSubjects)) {
+              for (const professorSubject of subject.professorSubjects) {
+                try {
+                  // Carregar tarefas do professor-matéria
+                  const tasksResponse = await tasksApi.listByProfessor(professorSubject.id, token);
+                  if (Array.isArray(tasksResponse.data)) {
+                    allTasks.push(...tasksResponse.data);
+                  }
+
+                  // Carregar rotinas do professor-matéria
+                  const routinesResponse = await routinesApi.listByProfessor(professorSubject.id, token);
+                  if (Array.isArray(routinesResponse.data)) {
+                    allRoutines.push(...routinesResponse.data);
+                  }
+                } catch (err) {
+                  console.error(`Erro ao carregar dados do professor-matéria ${professorSubject.id}:`, err);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Erro ao carregar matérias do curso ${course.id}:`, err);
+        }
+      }
+
+      setTasks(allTasks);
+      setRoutines(allRoutines);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Não foi possível carregar o cronograma');

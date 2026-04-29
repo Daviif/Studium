@@ -222,12 +222,11 @@ model Evaluation {
 // ============================================================================
 model File {
   id           Int     @id @default(autoincrement())
-  filename     String
-  originalName String
-  mimeType     String
-  size         Int // em bytes
-  path         String // caminho no servidor
-  url          String? // URL pública (se hospedado em cloud)
+  name         String?        // Nome exibido do arquivo
+  url          String         // URL do Cloudinary
+  mimeType     String?
+  size         Int?           // Tamanho em bytes
+  cloudinaryId String?        // ID no Cloudinary (para deletar)
 
   professorSubjectId Int
   professorSubject   ProfessorSubject @relation(fields: [professorSubjectId], references: [id], onDelete: Cascade)

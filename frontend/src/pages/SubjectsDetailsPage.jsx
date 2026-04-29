@@ -1,10 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, Download, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, Download, Trash2, Users, AlertCircle, Clock, CheckCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { subjectsApi, tasksApi, filesApi, routinesApi } from '../services/api';
 import ProfessorsModal from '../components/ProfessorsModal';
 import './SubjectsDetails.css';
+
+// Função para calcular status da tarefa
+const getTaskStatus = (dueDate, completed) => {
+  if (completed) return { type: 'completed', label: 'Concluída', color: '#2ecc71' };
+  
+  if (!dueDate) return { type: 'no-date', label: 'Sem prazo', color: '#95a5a6' };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  
+  const diffTime = due - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { type: 'overdue', label: `${Math.abs(diffDays)} dia(s) atrasada`, color: '#e74c3c' };
+  if (diffDays === 0) return { type: 'today', label: 'Entrega hoje!', color: '#f39c12' };
+  if (diffDays === 1) return { type: 'tomorrow', label: 'Amanhã', color: '#f39c12' };
+  if (diffDays <= 3) return { type: 'soon', label: 'Próxima', color: '#3498db' };
+  
+  return { type: 'normal', label: '', color: '#95a5a6' };
+};
 
 export default function SubjectDetailsPage() {
   const { courseId, subjectId } = useParams();
@@ -264,43 +287,64 @@ export default function SubjectDetailsPage() {
       ) : (
         <>
           <div className="tasks-section">
-            <h2>Atividades e Tarefas</h2>
+            <div className="tasks-header">
+              <h2>Atividades e Tarefas</h2>
+              <span className="tasks-count">{tasks.length}</span>
+            </div>
 
             {tasks.length === 0 ? (
               <div className="empty-tasks">
+                <CheckCheck size={48} color="#667eea" strokeWidth={1.5} />
                 <p>Nenhuma tarefa para este professor.</p>
               </div>
             ) : (
               <div className="tasks-list">
-                {tasks.map((task) => (
-                  <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
-                    <button 
-                      className="task-status-btn" 
-                      onClick={() => handleToggleTask(task.id, task.completed)}
-                    >
-                      {task.completed ? <CheckCircle2 color="#2ecc71" /> : <Circle color="#95a5a6" />}
-                    </button>
-                    
-                    <div className="task-content">
-                      <h3>{task.title}</h3>
-                      {task.description && <p>{task.description}</p>}
-                      {task.dueDate && (
-                        <span className="task-date">
-                          <Calendar size={14} />
-                          {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                        </span>
-                      )}
-                    </div>
+                {tasks.map((task) => {
+                  const status = getTaskStatus(task.dueDate, task.completed);
+                  return (
+                    <div key={task.id} className={`task-item task-${status.type}`}>
+                      <button 
+                        className="task-status-btn" 
+                        onClick={() => handleToggleTask(task.id, task.completed)}
+                        title={task.completed ? 'Marcar como pendente' : 'Marcar como concluída'}
+                      >
+                        {task.completed ? (
+                          <CheckCircle2 size={24} color="#2ecc71" strokeWidth={2} />
+                        ) : (
+                          <Circle size={24} color="#e0e0e0" strokeWidth={2} />
+                        )}
+                      </button>
+                      
+                      <div className="task-content">
+                        <div className="task-title-row">
+                          <h3>{task.title}</h3>
+                          {status.label && (
+                            <span className="task-badge" style={{ borderColor: status.color, color: status.color }}>
+                              {status.type === 'overdue' && <AlertCircle size={12} />}
+                              {(status.type === 'today' || status.type === 'tomorrow' || status.type === 'soon') && <Clock size={12} />}
+                              {status.label}
+                            </span>
+                          )}
+                        </div>
+                        {task.description && <p className="task-description">{task.description}</p>}
+                        {task.dueDate && (
+                          <span className="task-date">
+                            <Calendar size={14} />
+                            {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
 
-                    <button
-                      className="delete-btn"
-                      onClick={() => handleDeleteTask(task.id)}
-                      title="Deletar tarefa"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                      <button
+                        className="task-delete-btn"
+                        onClick={() => handleDeleteTask(task.id)}
+                        title="Deletar tarefa"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -317,7 +361,7 @@ export default function SubjectDetailsPage() {
                 {files.map((file) => (
                   <div key={file.id} className="file-item">
                     <div className="file-info">
-                      <h3>{file.originalName}</h3>
+                      <h3>{file.name}</h3>
                       <p className="file-meta">
                         {(file.size / 1024).toFixed(2)} KB • {new Date(file.uploadedAt).toLocaleDateString('pt-BR')}
                       </p>
