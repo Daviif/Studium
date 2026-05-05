@@ -4,6 +4,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { coursesApi, subjectsApi, tasksApi } from '../services/api';
 import '../styles/QuickShortcuts.css';
 
+// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
+const getDateOnlyFromISO = (isoString) => {
+  if (!isoString) return null;
+  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
+    return isoString;
+  }
+  return isoString.split('T')[0];
+};
+
+// Função auxiliar para criar Data a partir de string YYYY-MM-DD
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export default function QuickShortcuts() {
   const { token } = useAuth();
   const [data, setData] = useState({
@@ -73,11 +89,11 @@ export default function QuickShortcuts() {
       const upcomingTasks = allTasks
         .filter(task => {
           if (!task.dueDate) return false;
-          const dueDate = new Date(task.dueDate);
+          const dueDate = parseLocalDate(getDateOnlyFromISO(task.dueDate));
           dueDate.setHours(0, 0, 0, 0);
           return dueDate >= today && dueDate <= sevenDaysFromNow;
         })
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .sort((a, b) => parseLocalDate(getDateOnlyFromISO(a.dueDate)) - parseLocalDate(getDateOnlyFromISO(b.dueDate)))
         .slice(0, 5); // Top 5
 
       // Matérias prioritárias (com mais tarefas pendentes)

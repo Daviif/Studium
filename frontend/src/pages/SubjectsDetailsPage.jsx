@@ -6,6 +6,24 @@ import { subjectsApi, tasksApi, filesApi, routinesApi, evaluationsApi } from '..
 import ProfessorsModal from '../components/ProfessorsModal';
 import './SubjectsDetails.css';
 
+// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
+const getDateOnlyFromISO = (isoString) => {
+  if (!isoString) return null;
+  // Se for string de data simples (YYYY-MM-DD), retorna como está
+  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
+    return isoString;
+  }
+  // Se for ISO (com T), pega apenas a parte antes do T
+  return isoString.split('T')[0];
+};
+
+// Função auxiliar para criar Data a partir de string YYYY-MM-DD
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 // Função para calcular status da tarefa
 const getTaskStatus = (dueDate, completed) => {
   if (completed) return { type: 'completed', label: 'Concluída', color: '#2ecc71' };
@@ -15,7 +33,9 @@ const getTaskStatus = (dueDate, completed) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const due = new Date(dueDate);
+  // Extrai apenas a data (YYYY-MM-DD) e faz parsing local
+  const dueDateOnly = getDateOnlyFromISO(dueDate);
+  const due = parseLocalDate(dueDateOnly);
   due.setHours(0, 0, 0, 0);
   
   const diffTime = due - today;
@@ -350,7 +370,7 @@ export default function SubjectDetailsPage() {
                         {task.dueDate && (
                           <span className="task-date">
                             <Calendar size={14} />
-                            {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                            {parseLocalDate(getDateOnlyFromISO(task.dueDate)).toLocaleDateString('pt-BR')}
                           </span>
                         )}
                       </div>

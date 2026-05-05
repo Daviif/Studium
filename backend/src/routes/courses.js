@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require('../prisma');
+const DEFAULT_COURSES = require('../constants/defaultCourses');
 const router = express.Router();
 
 // ============================================================================
@@ -66,6 +67,54 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar curso:', error);
     res.status(500).json({ error: 'Erro ao buscar curso' });
+  }
+});
+
+// ============================================================================
+// POST: Criar curso padrão com suas matérias obrigatórias
+// Rota: POST /api/courses/default/:courseId
+// Params: courseId = eng-comp, sist-info, eng-eletrica, eng-producao
+// ============================================================================
+router.post('/default/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.userId;
+
+    // Validar se o ID do curso existe
+    if (!DEFAULT_COURSES[courseId]) {
+      return res.status(400).json({
+        error: 'Curso padrão não encontrado. IDs válidos: eng-comp, sist-info, eng-eletrica, eng-producao'
+      });
+    }
+
+    const courseData = DEFAULT_COURSES[courseId];
+
+    // Criar o curso
+    const course = await prisma.course.create({
+      data: {
+        name: courseData.name,
+        university: 'Padrão',
+        userId,
+        subjects: {
+          create: courseData.subjects.map(subject => ({
+            name: subject.name,
+            period: subject.period,
+            type: subject.type
+          }))
+        }
+      },
+      include: {
+        subjects: true
+      }
+    });
+
+    res.status(201).json({
+      ...course,
+      message: `Curso '${course.name}' criado com ${course.subjects.length} matérias obrigatórias!`
+    });
+  } catch (error) {
+    console.error('Erro ao criar curso padrão:', error);
+    res.status(500).json({ error: 'Erro ao criar curso padrão' });
   }
 });
 

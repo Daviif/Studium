@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import DefaultCoursesModal from '../components/DefaultCoursesModal';
 import './Auth.css';
 
 export default function SignupPage() {
@@ -14,6 +15,7 @@ export default function SignupPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showCoursesModal, setShowCoursesModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -53,8 +55,11 @@ export default function SignupPage() {
     );
 
     if (result.success) {
-      navigate('/');
+      console.log('✅ Registro bem-sucedido! Mostrando modal de cursos padrões...');
+      // Mostra o modal para seleção de cursos padrões
+      setShowCoursesModal(true);
     } else {
+      console.log('❌ Erro no registro:', result.error);
       setError(result.error);
     }
 
@@ -62,7 +67,11 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="auth-container">
+    <>
+      {showCoursesModal && (
+        <DefaultCoursesModal onClose={() => setShowCoursesModal(false)} />
+      )}
+      <div className="auth-container">
       <div className="auth-card">
         <h1 className="auth-title">StudyHub</h1>
         <h2 className="auth-subtitle">Criar Conta</h2>
@@ -145,5 +154,6 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+    </>
   );
 }
