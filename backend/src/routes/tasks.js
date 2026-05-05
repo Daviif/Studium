@@ -3,6 +3,20 @@ const prisma = require('../prisma');
 const router = express.Router();
 
 // ============================================================================
+// FUNÇÃO AUXILIAR: Parser seguro de datas
+// Converte string YYYY-MM-DD para Date local (não UTC)
+// ============================================================================
+function parseDateAsLocal(dateString) {
+  if (!dateString) return null;
+  if (typeof dateString === 'object' && dateString instanceof Date) {
+    return dateString;
+  }
+  // Se for string YYYY-MM-DD, cria Date no timezone local
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// ============================================================================
 // GET: Listar tarefas de um professor-matéria
 // Rota: GET /api/tasks?professorSubjectId=1
 // Query params opcionais: subjectId (para compatibilidade)
@@ -132,7 +146,7 @@ router.post('/', async (req, res) => {
         description: description || '',
         type: type || 'ATIVIDADE',
         weight: weight || 1.0,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        dueDate: parseDateAsLocal(dueDate),
         priority: priority || 'MEDIA',
         professorSubjectId: parseInt(finalProfessorSubjectId)
       },
@@ -184,7 +198,7 @@ router.patch('/:id', async (req, res) => {
         ...(description !== undefined && { description }),
         ...(type && { type }),
         ...(weight && { weight }),
-        ...(dueDate && { dueDate: new Date(dueDate) }),
+        ...(dueDate && { dueDate: parseDateAsLocal(dueDate) }),
         ...(priority && { priority }),
         ...(completed !== undefined && { completed })
       }

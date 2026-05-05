@@ -6,6 +6,22 @@ import { useAuth } from './contexts/AuthContext';
 import QuickShortcuts from './components/QuickShortcuts';
 import './App.css';
 
+// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
+const getDateOnlyFromISO = (isoString) => {
+  if (!isoString) return null;
+  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
+    return isoString;
+  }
+  return isoString.split('T')[0];
+};
+
+// Função auxiliar para criar Data a partir de string YYYY-MM-DD
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 function App() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
@@ -72,15 +88,16 @@ function App() {
 
       // Filtrar tarefas não concluídas com data próxima
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const next30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
       const upcomingTasksList = allTasks
         .filter(task => {
           if (!task.dueDate || task.completed) return false;
-          const dueDate = new Date(task.dueDate);
+          const dueDate = parseLocalDate(getDateOnlyFromISO(task.dueDate));
           return dueDate >= today && dueDate <= next30Days;
         })
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .sort((a, b) => parseLocalDate(getDateOnlyFromISO(a.dueDate)) - parseLocalDate(getDateOnlyFromISO(b.dueDate)))
         .slice(0, 8); // Top 8 atividades próximas
 
       setSubjects(recentSubjects);
@@ -108,7 +125,7 @@ function App() {
   const getDaysUntil = (dueDate) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
+    const due = parseLocalDate(getDateOnlyFromISO(dueDate));
     due.setHours(0, 0, 0, 0);
     const diff = due.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
