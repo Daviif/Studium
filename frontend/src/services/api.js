@@ -174,4 +174,30 @@ export const authApi = {
   })
 };
 
+// ============================================================================
+// AVALIAÇÕES (Provas com Peso e Notas)
+// ============================================================================
+export const evaluationsApi = {
+  // Listar provas de uma matéria
+  list: (subjectId, token) => api.get(`/evaluations?subjectId=${subjectId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Obter uma avaliação específica
+  get: (id, token) => api.get(`/evaluations/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Criar ou atualizar avaliação
+  create: (data, token) => api.post('/evaluations', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Atualizar avaliação
+  update: (id, data, token) => api.patch(`/evaluations/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  // Deletar avaliação
+  delete: (id, token) => api.delete(`/evaluations/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+};
+
 export default api;

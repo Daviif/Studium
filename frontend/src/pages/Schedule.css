@@ -1,7 +1,5 @@
 .schedule-container {
-  min-height: 100vh;
-  background: linear-gradient(140deg, #f0f4ff 0%, #f2f5fb 45%, #eef2f9 100%);
-  padding: 24px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -218,14 +216,21 @@
   align-items: flex-start;
   font-size: 12px;
   transition: all 0.2s;
+  cursor: pointer;
 }
 
 .schedule-item:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .task-item {
   border-left: 3px solid #e74c3c;
+}
+
+.prova-item {
+  border-left: 3px solid #f39c12;
+  background: linear-gradient(135deg, #fffbf0 0%, #fffaf5 100%);
 }
 
 .routine-item {
@@ -252,7 +257,8 @@
   word-break: break-word;
 }
 
-.item-time {
+.item-time,
+.item-weight {
   color: #60779a;
   font-size: 11px;
 }
@@ -281,14 +287,15 @@
 }
 
 .calendar-day {
-  aspect-ratio: 1;
+  aspect-ratio: auto;
+  min-height: 80px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
@@ -321,20 +328,21 @@
 }
 
 .day-number {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2a43;
+  margin-bottom: 2px;
 }
 
 .event-indicators {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   flex-wrap: wrap;
 }
 
 .indicator {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
 }
 
@@ -342,8 +350,20 @@
   background: #3498db;
 }
 
+.prova-indicator {
+  background: #f39c12;
+}
+
 .task-indicator {
   background: #e74c3c;
+}
+
+.trabalho-indicator {
+  background: #e67e22;
+}
+
+.atividade-indicator {
+  background: #667eea;
 }
 
 .schedule-legend {
@@ -393,4 +413,84 @@
     flex-direction: column;
     gap: 12px;
   }
+}
+
+/* Schedule Filters */
+.schedule-filters {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.filters-title {
+  font-weight: 600;
+  color: #1f2a43;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.filters-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #f5f7ff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  color: #60779a;
+  font-weight: 500;
+}
+
+.filter-checkbox:hover {
+  background: #f0f4ff;
+  border-color: #667eea;
+}
+
+.filter-checkbox input {
+  accent-color: #667eea;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.filter-checkbox input:checked + svg {
+  opacity: 1;
+}
+
+/* Task Type Specific Styles */
+.schedule-item.task-type-atividade {
+  border-left-color: #667eea;
+}
+
+.schedule-item.task-type-atividade:not(.completed) {
+  background: linear-gradient(135deg, #f5f7ff 0%, #fafbff 100%);
+}
+
+.schedule-item.task-type-trabalho {
+  border-left-color: #e67e22;
+}
+
+.schedule-item.task-type-trabalho:not(.completed) {
+  background: linear-gradient(135deg, #fff8f3 0%, #fffaf5 100%);
+}
+
+.schedule-item.task-type-prova {
+  border-left-color: #f39c12;
+}
+
+.schedule-item.task-type-prova:not(.completed) {
+  background: linear-gradient(135deg, #fffbf0 0%, #fffaf5 100%);
 }

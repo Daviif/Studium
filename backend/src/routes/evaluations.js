@@ -1,10 +1,87 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 // ============================================================================
-// POST: Criar avaliação para uma tarefa
+// GET: Listar provas de uma matéria
+// Rota: GET /api/evaluations?subjectId=1
+// ============================================================================
+router.get('/', async (req, res) => {
+  try {
+    const { subjectId } = req.query;
+
+    if (!subjectId) {
+      return res.status(400).json({ error: 'subjectId é obrigatório' });
+    }
+
+    // Busca todas as tarefas do tipo PROVA da matéria
+    const tasks = await prisma.task.findMany({
+      where: {
+        type: 'PROVA',
+        professorSubject: {
+          subject: {
+            id: parseInt(subjectId)
+          }
+        }
+      },
+      include: {
+        evaluation: true,
+        professorSubject: {
+          include: {
+            professor: true
+          }
+        }
+      },
+      orderBy: {
+        dueDate: 'asc'
+      }
+    });
+
+    res.json(tasks);
+  } catch (error) {
+    console.error('Erro ao listar provas:', error);
+    res.status(500).json({ error: 'Erro ao listar provas' });
+  }
+});
+
+// ============================================================================
+// GET: Obter uma prova específica
+// Rota: GET /api/evaluations/:id
+// ============================================================================
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const evaluation = await prisma.evaluation.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        task: {
+          include: {
+            professorSubject: {
+              include: {
+                subject: true,
+                professor: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!evaluation) {
+      return res.status(404).json({ error: 'Avaliação não encontrada' });
+    }
+
+    res.json(evaluation);
+  } catch (error) {
+    console.error('Erro ao obter avaliação:', error);
+    res.status(500).json({ error: 'Erro ao obter avaliação' });
+  }
+});
+
+// ============================================================================
+// POST: Criar ou atualizar avaliação para uma tarefa
 // Rota: POST /api/evaluations
 // Body: { "taskId": 1, "grade": 8.5, "maxGrade": 10, "weight": 30 }
 // ============================================================================
@@ -47,6 +124,54 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Erro ao criar avaliação:', error);
     res.status(500).json({ error: 'Erro ao criar avaliação' });
+  }
+});
+
+// ============================================================================
+// PATCH: Atualizar avaliação
+// Rota: PATCH /api/evaluations/:id
+// Body: { "grade": 9.0, "weight": 30 }
+// ============================================================================
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { grade, maxGrade, weight } = req.body;
+
+    const evaluation = await prisma.evaluation.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...(grade !== undefined && { grade: parseFloat(grade) }),
+        ...(maxGrade !== undefined && { maxGrade: parseFloat(maxGrade) }),
+        ...(weight !== undefined && { weight: parseFloat(weight) })
+      },
+      include: {
+        task: true
+      }
+    });
+
+    res.json(evaluation);
+  } catch (error) {
+    console.error('Erro ao atualizar avaliação:', error);
+    res.status(500).json({ error: 'Erro ao atualizar avaliação' });
+  }
+});
+
+// ============================================================================
+// DELETE: Deletar avaliação
+// Rota: DELETE /api/evaluations/:id
+// ============================================================================
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.evaluation.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: 'Avaliação deletada com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar avaliação:', error);
+    res.status(500).json({ error: 'Erro ao deletar avaliação' });
   }
 });
 

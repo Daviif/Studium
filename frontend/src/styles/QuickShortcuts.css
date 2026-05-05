@@ -1,0 +1,248 @@
+/* Seção de Atalhos Rápidos */
+.quick-shortcuts {
+  margin-bottom: 32px;
+}
+
+.shortcuts-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2a43;
+  margin-bottom: 16px;
+  letter-spacing: -0.4px;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* Card base */
+.shortcut-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  border: 1px solid #d7dfea;
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.shortcut-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Header do card */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+}
+
+.card-icon {
+  flex-shrink: 0;
+}
+
+.card-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2a43;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+/* Card com tema urgente */
+.urgent-card {
+  border-left: 4px solid #e74c3c;
+}
+
+.urgent-card .card-icon {
+  color: #e74c3c;
+}
+
+/* Card com tema prioritário */
+.priority-card {
+  border-left: 4px solid #f39c12;
+}
+
+.priority-card .card-icon {
+  color: #f39c12;
+}
+
+/* Card com tema de avaliações */
+.evaluation-card {
+  border-left: 4px solid #3498db;
+}
+
+.evaluation-card .card-icon {
+  color: #3498db;
+}
+
+/* Lista de atalhos */
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(102, 126, 234, 0.04);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.shortcut-item:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateX(4px);
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2a43;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-subject,
+.item-meta {
+  font-size: 12px;
+  color: #60779a;
+  margin: 4px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badge de status para tarefas */
+.item-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.urgent-badge {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.evaluation-badge {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge de contagem para matérias */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* Estados específicos */
+.urgent-item {
+  border-left: 3px solid rgba(231, 76, 60, 0.2);
+}
+
+.priority-item {
+  border-left: 3px solid rgba(243, 156, 18, 0.2);
+}
+
+.evaluation-item {
+  border-left: 3px solid rgba(52, 152, 219, 0.2);
+}
+
+/* Mensagem de carregamento */
+.loading-text {
+  text-align: center;
+  color: #60779a;
+  font-size: 14px;
+  padding: 24px;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .shortcuts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shortcut-card {
+    padding: 14px;
+  }
+
+  .card-header h3 {
+    font-size: 13px;
+  }
+
+  .item-title {
+    font-size: 12px;
+  }
+
+  .item-subject,
+  .item-meta {
+    font-size: 11px;
+  }
+
+  .shortcut-item {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shortcuts-title {
+    font-size: 16px;
+  }
+
+  .card-header {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .card-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .shortcuts-list {
+    gap: 8px;
+  }
+
+  .item-badge,
+  .priority-badge {
+    padding: 3px 6px;
+    font-size: 10px;
+    min-width: 24px;
+    height: 24px;
+  }
+}

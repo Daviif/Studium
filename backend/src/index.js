@@ -46,7 +46,6 @@ app.use(express.json());
 
 // HEALTH CHECK
 app.get('/api/health', (req, res) => {
-  console.log('✅ Health check requisitado');
   res.json({ status: 'OK', message: 'Backend está funcionando' });
 });
 
@@ -58,6 +57,7 @@ const routinesRouter = require('./routes/routines');
 const filesRouter = require('./routes/files');
 const authRouter = require('./routes/auth');
 const professorsRouter = require('./routes/professors');
+const evaluationsRouter = require('./routes/evaluations');
 const path = require('path');
 const { startJobs } = require('./jobs');
 
@@ -99,6 +99,7 @@ app.use('/api/tasks', authenticateToken, tasksRouter);
 app.use('/api/routines', authenticateToken, routinesRouter);
 app.use('/api/files', authenticateToken, filesRouter);
 app.use('/api/professors', authenticateToken, professorsRouter);
+app.use('/api/evaluations', authenticateToken, evaluationsRouter);
 app.use('/api/notifications', authenticateToken, require('./routes/notifications'));
 // ============================================================================
 // INICIAR SERVIDOR

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, Download, Trash2, Users, AlertCircle, Clock, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, Download, Trash2, Users, AlertCircle, Clock, CheckCheck, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { subjectsApi, tasksApi, filesApi, routinesApi } from '../services/api';
+import { subjectsApi, tasksApi, filesApi, routinesApi, evaluationsApi } from '../services/api';
 import ProfessorsModal from '../components/ProfessorsModal';
 import './SubjectsDetails.css';
 
@@ -37,19 +37,25 @@ export default function SubjectDetailsPage() {
   const [subject, setSubject] = useState(null);
   const [selectedProfessorSubject, setSelectedProfessorSubject] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [provas, setProvas] = useState([]);
   const [files, setFiles] = useState([]);
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProvaModalOpen, setIsProvaModalOpen] = useState(false);
+  const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isProfessorsModalOpen, setIsProfessorsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedProva, setSelectedProva] = useState(null);
   
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    dueDate: ''
+    dueDate: '',
+    weight: 1.0,
+    type: 'ATIVIDADE'
   });
 
   const [uploadData, setUploadData] = useState({
@@ -106,6 +112,10 @@ export default function SubjectDetailsPage() {
       // Carrega rotinas do professor-matéria
       const routinesResponse = await routinesApi.listByProfessor(selectedProfessorSubject.id, token);
       setRoutines(Array.isArray(routinesResponse.data) ? routinesResponse.data : []);
+
+      // Carrega provas da matéria
+      const provasResponse = await evaluationsApi.list(subjectId, token);
+      setProvas(Array.isArray(provasResponse.data) ? provasResponse.data : []);
     } catch (err) {
       console.error('Erro ao carregar dados do professor:', err);
       setError('Não foi possível carregar os dados deste professor');
@@ -142,7 +152,7 @@ export default function SubjectDetailsPage() {
         token
       );
 
-      setFormData({ title: '', description: '', dueDate: '' });
+      setFormData({ title: '', description: '', dueDate: '', weight: 1.0, type: 'ATIVIDADE' });
       setIsModalOpen(false);
       await loadProfessorData();
     } catch (err) {
@@ -270,6 +280,11 @@ export default function SubjectDetailsPage() {
               Nova Tarefa
             </button>
 
+            <button className="add-task-button" onClick={() => setIsProvaModalOpen(true)}>
+              <Zap size={18} />
+              Nova Prova
+            </button>
+
             <button className="add-task-button" onClick={() => setIsUploadModalOpen(true)}>
               <Upload size={18} />
               Upload
@@ -318,6 +333,11 @@ export default function SubjectDetailsPage() {
                       <div className="task-content">
                         <div className="task-title-row">
                           <h3>{task.title}</h3>
+                          {task.weight && task.weight > 1.0 && (
+                            <span className="task-weight-badge">
+                              Peso: {task.weight}
+                            </span>
+                          )}
                           {status.label && (
                             <span className="task-badge" style={{ borderColor: status.color, color: status.color }}>
                               {status.type === 'overdue' && <AlertCircle size={12} />}
@@ -342,6 +362,84 @@ export default function SubjectDetailsPage() {
                       >
                         <Trash2 size={18} />
                       </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="provas-section">
+            <div className="tasks-header">
+              <h2>📝 Provas e Avaliações</h2>
+              <span className="tasks-count">{provas.length}</span>
+            </div>
+
+            {provas.length === 0 ? (
+              <div className="empty-tasks">
+                <Zap size={48} color="#f39c12" strokeWidth={1.5} />
+                <p>Nenhuma prova cadastrada para este professor.</p>
+              </div>
+            ) : (
+              <div className="provas-list">
+                {provas.map((prova) => {
+                  const status = getTaskStatus(prova.dueDate, prova.completed);
+                  return (
+                    <div key={prova.id} className={`prova-item prova-${status.type}`}>
+                      <div className="prova-header">
+                        <h3>{prova.title}</h3>
+                        <span className="prova-weight">Peso: {prova.weight}</span>
+                      </div>
+                      {prova.description && <p className="prova-description">{prova.description}</p>}
+                      {prova.dueDate && (
+                        <span className="prova-date">
+                          <Calendar size={14} />
+                          {new Date(prova.dueDate).toLocaleDateString('pt-BR')}
+                        </span>
+                      )}
+                      {prova.evaluation && (
+                        <div className="prova-evaluation">
+                          <p className="evaluation-grade">
+                            Nota: {prova.evaluation.grade}/{prova.evaluation.maxGrade}
+                          </p>
+                          <p className="evaluation-weight">
+                            Peso: {prova.evaluation.weight}
+                          </p>
+                        </div>
+                      )}
+                      <div className="prova-actions">
+                        {!prova.evaluation && (
+                          <button
+                            className="action-btn"
+                            onClick={() => {
+                              setSelectedProva(prova);
+                              setIsEvaluationModalOpen(true);
+                            }}
+                            title="Adicionar nota"
+                          >
+                            ✏️ Nota
+                          </button>
+                        )}
+                        {prova.evaluation && (
+                          <button
+                            className="action-btn"
+                            onClick={() => {
+                              setSelectedProva(prova);
+                              setIsEvaluationModalOpen(true);
+                            }}
+                            title="Editar nota"
+                          >
+                            ✏️ Editar
+                          </button>
+                        )}
+                        <button
+                          className="action-btn delete"
+                          onClick={() => handleDeleteTask(prova.id)}
+                          title="Deletar prova"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -399,6 +497,149 @@ export default function SubjectDetailsPage() {
         token={token}
         onProfessorSelected={setSelectedProfessorSubject}
       />
+
+      {/* Modal de Nova Prova */}
+      {isProvaModalOpen && (
+        <div className="modal-backdrop" onClick={() => !isSaving && setIsProvaModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Nova Prova</h2>
+            <p>Para {selectedProfessorSubject?.professor.name || 'este professor'}</p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateTask(e);
+              setIsProvaModalOpen(false);
+            }}>
+              <label>Título</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value, type: 'PROVA' })}
+                placeholder="Ex: Prova de Cálculo"
+                disabled={isSaving}
+              />
+
+              <label>Peso da Prova</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={formData.weight}
+                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })}
+                placeholder="Ex: 30.0"
+                disabled={isSaving}
+              />
+
+              <label>Descrição (Opcional)</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Conteúdo cobrado, etc..."
+                disabled={isSaving}
+              />
+
+              <label>Data da Prova</label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                disabled={isSaving}
+              />
+
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setIsProvaModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="primary-button" disabled={isSaving}>
+                  {isSaving ? 'Salvando...' : 'Criar Prova'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Avaliação/Nota */}
+      {isEvaluationModalOpen && selectedProva && (
+        <div className="modal-backdrop" onClick={() => !isSaving && setIsEvaluationModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>{selectedProva.evaluation ? 'Editar Nota' : 'Adicionar Nota'}</h2>
+            <p>{selectedProva.title}</p>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                setIsSaving(true);
+                const formElement = e.target;
+                const grade = parseFloat(formElement.querySelector('input[name="grade"]').value);
+                const maxGrade = parseFloat(formElement.querySelector('input[name="maxGrade"]').value);
+                const weight = parseFloat(formElement.querySelector('input[name="weight"]').value);
+
+                if (selectedProva.evaluation) {
+                  await evaluationsApi.update(selectedProva.evaluation.id, { grade, maxGrade, weight }, token);
+                } else {
+                  await evaluationsApi.create({ taskId: selectedProva.id, grade, maxGrade, weight }, token);
+                }
+
+                setIsEvaluationModalOpen(false);
+                setSelectedProva(null);
+                await loadProfessorData();
+              } catch (err) {
+                console.error('Erro ao salvar avaliação:', err);
+                setError('Erro ao salvar avaliação');
+              } finally {
+                setIsSaving(false);
+              }
+            }}>
+              <label>Nota Obtida</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                name="grade"
+                defaultValue={selectedProva.evaluation?.grade || ''}
+                placeholder="Ex: 8.5"
+                disabled={isSaving}
+                required
+              />
+
+              <label>Nota Máxima</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                name="maxGrade"
+                defaultValue={selectedProva.evaluation?.maxGrade || 10}
+                placeholder="Ex: 10"
+                disabled={isSaving}
+                required
+              />
+
+              <label>Peso da Avaliação</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                name="weight"
+                defaultValue={selectedProva.evaluation?.weight || selectedProva.weight || 1.0}
+                placeholder="Ex: 30"
+                disabled={isSaving}
+                required
+              />
+
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => {
+                  setIsEvaluationModalOpen(false);
+                  setSelectedProva(null);
+                }}>
+                  Cancelar
+                </button>
+                <button type="submit" className="primary-button" disabled={isSaving}>
+                  {isSaving ? 'Salvando...' : 'Salvar Nota'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Upload */}
       {isUploadModalOpen && (
@@ -465,6 +706,28 @@ export default function SubjectDetailsPage() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Ex: Estudar para prova"
+                disabled={isSaving}
+              />
+
+              <label>Tipo de Tarefa</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                disabled={isSaving}
+              >
+                <option value="ATIVIDADE">Atividade</option>
+                <option value="TRABALHO">Trabalho</option>
+                
+              </select>
+
+              <label>Peso da Tarefa</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={formData.weight}
+                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })}
+                placeholder="Ex: 1.0"
                 disabled={isSaving}
               />
 

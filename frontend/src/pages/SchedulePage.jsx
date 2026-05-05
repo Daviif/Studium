@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, CheckCircle2, Circle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, CheckCircle2, Circle, ChevronLeft, ChevronRight, Zap, CheckSquare, FileText, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { coursesApi, tasksApi, routinesApi } from '../services/api';
+import { coursesApi, subjectsApi, tasksApi, routinesApi } from '../services/api';
 import './Schedule.css';
 
 export default function SchedulePage() {
@@ -17,6 +17,12 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('week'); // 'week' ou 'month'
+  const [taskFilters, setTaskFilters] = useState({
+    ATIVIDADE: true,
+    TRABALHO: true,
+    PROVA: true,
+    routines: true
+  });
 
   useEffect(() => {
     loadData();
@@ -122,20 +128,88 @@ export default function SchedulePage() {
     setCurrentDate(newDate);
   };
 
-  const getTasksForDate = (date) => {
-    return tasks.filter(task => {
+  const getTaskIcon = (taskType) => {
+    switch (taskType) {
+      case 'ATIVIDADE':
+        return <CheckSquare size={14} />;
+      case 'TRABALHO':
+        return <FileText size={14} />;
+      case 'PROVA':
+        return <Zap size={14} color="#f39c12" />;
+      default:
+        return <Circle size={14} />;
+    }
+  };
+
+  const getTaskColor = (taskType) => {
+    switch (taskType) {
+      case 'ATIVIDADE':
+        return '#667eea';
+      case 'TRABALHO':
+        return '#e67e22';
+      case 'PROVA':
+        return '#f39c12';
+      default:
+        return '#e74c3c';
+    }
+  };
+
+  const getFilteredTasks = (date) => {
+    const result = tasks.filter(task => {
       if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate).toDateString();
-      return taskDate === date.toDateString();
+      
+      // Comparar apenas a data (YYYY-MM-DD) sem considerar timezone
+      const dueDatePart = task.dueDate.split('T')[0];
+      const datePart = date.toISOString().split('T')[0];
+      
+      if (dueDatePart !== datePart) return false;
+      
+      // Aplicar filtros
+      if (task.type === 'PROVA' && !taskFilters.PROVA) return false;
+      if (task.type === 'ATIVIDADE' && !taskFilters.ATIVIDADE) return false;
+      if (task.type === 'TRABALHO' && !taskFilters.TRABALHO) return false;
+      
+      return true;
     });
+    
+    return result;
+  };
+
+  const getTasksForDate = (date) => {
+    return getFilteredTasks(date).filter(task => task.type !== 'PROVA');
+  };
+
+  const getProvasForDate = (date) => {
+    return getFilteredTasks(date).filter(task => task.type === 'PROVA');
+  };
+
+  const getTaskCountByType = (date) => {
+    const allTasks = getFilteredTasks(date);
+    return {
+      atividades: allTasks.filter(t => t.type === 'ATIVIDADE').length,
+      trabalhos: allTasks.filter(t => t.type === 'TRABALHO').length,
+      provas: allTasks.filter(t => t.type === 'PROVA').length
+    };
   };
 
   const getRoutinesForDate = (date) => {
+    if (!taskFilters.routines) return [];
+    
     return routines.filter(routine => {
       if (!routine.dayOfWeek) return false;
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       return dayNames[date.getDay()] === routine.dayOfWeek;
     });
+  };
+
+  const handleTaskToggle = async (taskId, currentStatus) => {
+    try {
+      await tasksApi.complete(taskId, !currentStatus, token);
+      await loadData();
+    } catch (err) {
+      console.error('Erro ao atualizar tarefa:', err);
+      setError('Erro ao atualizar tarefa');
+    }
   };
 
   if (loading) {
@@ -180,6 +254,48 @@ export default function SchedulePage() {
 
       {error && <div className="error-message">{error}</div>}
 
+      <div className="schedule-filters">
+        <div className="filters-title">Filtrar por tipo:</div>
+        <div className="filters-group">
+          <label className="filter-checkbox">
+            <input
+              type="checkbox"
+              checked={taskFilters.ATIVIDADE}
+              onChange={() => setTaskFilters({ ...taskFilters, ATIVIDADE: !taskFilters.ATIVIDADE })}
+            />
+            <CheckSquare size={16} color="#667eea" />
+            <span>Atividades</span>
+          </label>
+          <label className="filter-checkbox">
+            <input
+              type="checkbox"
+              checked={taskFilters.TRABALHO}
+              onChange={() => setTaskFilters({ ...taskFilters, TRABALHO: !taskFilters.TRABALHO })}
+            />
+            <FileText size={16} color="#e67e22" />
+            <span>Trabalhos</span>
+          </label>
+          <label className="filter-checkbox">
+            <input
+              type="checkbox"
+              checked={taskFilters.PROVA}
+              onChange={() => setTaskFilters({ ...taskFilters, PROVA: !taskFilters.PROVA })}
+            />
+            <Zap size={16} color="#f39c12" />
+            <span>Provas</span>
+          </label>
+          <label className="filter-checkbox">
+            <input
+              type="checkbox"
+              checked={taskFilters.routines}
+              onChange={() => setTaskFilters({ ...taskFilters, routines: !taskFilters.routines })}
+            />
+            <Clock size={16} color="#3498db" />
+            <span>Rotinas</span>
+          </label>
+        </div>
+      </div>
+
       <div className="calendar-controls">
         <button onClick={viewMode === 'week' ? previousWeek : previousMonth}>
           <ChevronLeft size={18} />
@@ -212,7 +328,7 @@ export default function SchedulePage() {
                 </div>
 
                 <div className="day-content">
-                  {getTasksForDate(date).length === 0 && getRoutinesForDate(date).length === 0 ? (
+                  {getTasksForDate(date).length === 0 && getProvasForDate(date).length === 0 && getRoutinesForDate(date).length === 0 ? (
                     <div className="empty-day">
                       <p>Sem atividades</p>
                     </div>
@@ -228,15 +344,33 @@ export default function SchedulePage() {
                         </div>
                       ))}
 
+                      {getProvasForDate(date).map((prova) => (
+                        <div key={`prova-${prova.id}`} className={`schedule-item prova-item ${prova.completed ? 'completed' : ''}`}>
+                          <Zap size={14} color="#f39c12" />
+                          <div className="item-content">
+                            <p className="item-title">{prova.title}</p>
+                            {prova.weight && <span className="item-weight">Peso: {prova.weight}</span>}
+                          </div>
+                        </div>
+                      ))}
+
                       {getTasksForDate(date).map((task) => (
-                        <div key={`task-${task.id}`} className={`schedule-item task-item ${task.completed ? 'completed' : ''}`}>
+                        <div 
+                          key={`task-${task.id}`} 
+                          className={`schedule-item task-item task-type-${task.type?.toLowerCase() || 'default'} ${task.completed ? 'completed' : ''}`}
+                          onClick={() => handleTaskToggle(task.id, task.completed)}
+                          role="button"
+                          tabIndex={0}
+                          title={task.completed ? 'Marcar como pendente' : 'Marcar como concluída'}
+                        >
                           {task.completed ? (
                             <CheckCircle2 size={14} color="#2ecc71" />
                           ) : (
-                            <Circle size={14} color="#e74c3c" />
+                            getTaskIcon(task.type)
                           )}
                           <div className="item-content">
                             <p className="item-title">{task.title}</p>
+                            {task.weight && task.type === 'PROVA' && <span className="item-weight">Peso: {task.weight}</span>}
                           </div>
                         </div>
                       ))}
@@ -265,16 +399,19 @@ export default function SchedulePage() {
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i + 1);
               const isToday = date.toDateString() === new Date().toDateString();
-              const tasksCount = getTasksForDate(date).length;
+              const tasksByType = getTaskCountByType(date);
               const routinesCount = getRoutinesForDate(date).length;
+              const totalEvents = tasksByType.atividades + tasksByType.trabalhos + tasksByType.provas + routinesCount;
 
               return (
-                <div key={i} className={`calendar-day ${isToday ? 'today' : ''} ${tasksCount > 0 || routinesCount > 0 ? 'has-events' : ''}`}>
+                <div key={i} className={`calendar-day ${isToday ? 'today' : ''} ${totalEvents > 0 ? 'has-events' : ''}`}>
                   <div className="day-number">{i + 1}</div>
-                  {(tasksCount > 0 || routinesCount > 0) && (
+                  {totalEvents > 0 && (
                     <div className="event-indicators">
                       {routinesCount > 0 && <div className="indicator routine-indicator" title="Rotinas"></div>}
-                      {tasksCount > 0 && <div className="indicator task-indicator" title="Tarefas"></div>}
+                      {tasksByType.provas > 0 && <div className="indicator prova-indicator" title="Provas"></div>}
+                      {tasksByType.trabalhos > 0 && <div className="indicator trabalho-indicator" title="Trabalhos"></div>}
+                      {tasksByType.atividades > 0 && <div className="indicator atividade-indicator" title="Atividades"></div>}
                     </div>
                   )}
                 </div>
@@ -286,12 +423,16 @@ export default function SchedulePage() {
 
       <div className="schedule-legend">
         <div className="legend-item">
-          <Circle size={14} color="#e74c3c" />
-          <span>Tarefa pendente</span>
+          <CheckSquare size={14} color="#667eea" />
+          <span>Atividade</span>
         </div>
         <div className="legend-item">
-          <CheckCircle2 size={14} color="#2ecc71" />
-          <span>Tarefa concluída</span>
+          <FileText size={14} color="#e67e22" />
+          <span>Trabalho</span>
+        </div>
+        <div className="legend-item">
+          <Zap size={14} color="#f39c12" />
+          <span>Prova</span>
         </div>
         <div className="legend-item">
           <Clock size={14} color="#3498db" />

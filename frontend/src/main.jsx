@@ -11,7 +11,9 @@ import SchedulePage from './pages/SchedulePage.jsx'
 import CoursesPage from './pages/CoursesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import DashboardLayout from './components/DashboardLayout.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
+import { SidebarProvider } from './contexts/SidebarContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -24,7 +26,11 @@ createRoot(document.getElementById('root')).render(
             path="/"
             element={
               <ProtectedRoute>
-                <App />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <App />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />
@@ -32,7 +38,11 @@ createRoot(document.getElementById('root')).render(
             path="/courses/:courseId"
             element={
               <ProtectedRoute>
-                <CourseDetailsPage />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <CourseDetailsPage />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />
@@ -40,7 +50,11 @@ createRoot(document.getElementById('root')).render(
             path="/courses/:courseId/subjects/:subjectId"
             element={
               <ProtectedRoute>
-                <SubjectsDetailsPage />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <SubjectsDetailsPage />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />
@@ -48,7 +62,11 @@ createRoot(document.getElementById('root')).render(
             path="/schedule"
             element={
               <ProtectedRoute>
-                <SchedulePage />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <SchedulePage />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />
@@ -56,7 +74,11 @@ createRoot(document.getElementById('root')).render(
             path="/courses"
             element={
               <ProtectedRoute>
-                <CoursesPage />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <CoursesPage />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />
@@ -64,7 +86,11 @@ createRoot(document.getElementById('root')).render(
             path="/profile"
             element={
               <ProtectedRoute>
-                <ProfilePage />
+                <SidebarProvider>
+                  <DashboardLayout>
+                    <ProfilePage />
+                  </DashboardLayout>
+                </SidebarProvider>
               </ProtectedRoute>
             }
           />

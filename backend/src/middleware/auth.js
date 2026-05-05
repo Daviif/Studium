@@ -12,7 +12,7 @@ const authMiddleware = (req, res, next) => {
     const token = authHeader.substring(7); // Remove "Bearer "
 
     // Verifica token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'sua-chave-secreta');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Adiciona dados do usuário ao request
     req.userId = decoded.id;

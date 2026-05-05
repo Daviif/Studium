@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   checkAndNotifyUpcomingTasks,
   markAsRead,
+  sendEmail,
 } = require('../services/notificationService');
 
 // ============================================================================
@@ -260,6 +261,77 @@ router.post('/check', async (req, res) => {
     console.error('Erro ao verificar tarefas:', error);
     res.status(500).json({
       error: 'Erro ao verificar tarefas',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================================================
+// POST: Enviar email de teste
+// Rota: POST /api/notifications/test-email
+// Headers: Authorization: Bearer <token>
+// Body: { recipientEmail: "email@example.com" }
+// ============================================================================
+router.post('/test-email', async (req, res) => {
+  try {
+    const { recipientEmail } = req.body;
+
+    if (!recipientEmail) {
+      return res.status(400).json({
+        error: 'Email de destino é obrigatório',
+      });
+    }
+
+    const testTemplate = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px;">✅ Email de Teste</h1>
+        </div>
+
+        <div style="background: white; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <p style="margin-top: 0; font-size: 16px; color: #555;">Olá,</p>
+
+          <p style="font-size: 14px; color: #666; line-height: 1.6;">
+            Este é um <strong>email de teste</strong> do sistema StudyHub. Se você recebeu este email, significa que a configuração de notificações por email está funcionando corretamente! 🎉
+          </p>
+
+          <div style="background: #f5f7ff; padding: 15px; border-left: 4px solid #667eea; border-radius: 4px; margin: 20px 0;">
+            <h2 style="margin: 0 0 10px 0; color: #1f2a43; font-size: 18px;">Próximos Passos</h2>
+            <ul style="margin: 0; color: #60779a; font-size: 14px;">
+              <li>Agora você receberá notificações de tarefas próximas</li>
+              <li>Gerenciar preferências de email nas configurações</li>
+              <li>Defina quantos dias antes você quer ser notificado</li>
+            </ul>
+          </div>
+
+          <p style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
+            © StudyHub - Sistema de Gerenciamento Acadêmico
+          </p>
+        </div>
+      </div>
+    `;
+
+    const result = await sendEmail(
+      recipientEmail,
+      '✅ Teste de Email - StudyHub',
+      testTemplate
+    );
+
+    if (result.success) {
+      res.json({
+        message: 'Email de teste enviado com sucesso!',
+        messageId: result.messageId,
+      });
+    } else {
+      res.status(500).json({
+        error: 'Erro ao enviar email de teste',
+        details: result.error || result.message,
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao enviar email de teste:', error);
+    res.status(500).json({
+      error: 'Erro ao enviar email de teste',
       details: error.message,
     });
   }

@@ -17,12 +17,6 @@ if (!process.env.CLOUDINARY_API_SECRET) {
   console.error('❌ ERRO: CLOUDINARY_API_SECRET não está definido!');
 }
 
-console.log('✅ Variáveis carregadas:');
-console.log('  CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-console.log('  API_KEY:', process.env.CLOUDINARY_API_KEY);
-console.log('  API_SECRET:', process.env.CLOUDINARY_API_SECRET?.substring(0, 10) + '...');
-
-
 // Configurar Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
