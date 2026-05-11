@@ -9,8 +9,8 @@ function startJobs() {
   try {
     console.log('🚀 Inicializando jobs...');
     
-    // Inicia o job de notificações
-    // Muda para initNotificationJobTest() para testar a cada minuto
+    // Job de notificações em modo de produção
+    // Executa a cada 30 minutos
     notificationJobInstance = initNotificationJob();
     
     console.log('✅ Todos os jobs iniciados com sucesso');

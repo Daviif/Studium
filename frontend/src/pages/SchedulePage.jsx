@@ -5,22 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { coursesApi, tasksApi, routinesApi } from '../services/api';
 import './Schedule.css';
 
-// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
-const getDateOnlyFromISO = (isoString) => {
-  if (!isoString) return null;
-  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
-    return isoString;
-  }
-  return isoString.split('T')[0];
-};
-
-// Função auxiliar para criar Data a partir de string YYYY-MM-DD
-const parseLocalDate = (dateString) => {
-  if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
 export default function SchedulePage() {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -43,50 +27,44 @@ export default function SchedulePage() {
       setLoading(true);
       setError('');
 
-      // Carregar cursos
-      const coursesResponse = await coursesApi.list(token);
-      const coursesData = Array.isArray(coursesResponse.data) ? coursesResponse.data : [];
-      setCourses(coursesData);
+      // Carregar TODAS as tarefas do usuário (endpoint otimizado)
+      const allTasksResponse = await tasksApi.getAllTasks(token);
+      const allTasks = Array.isArray(allTasksResponse.data) ? allTasksResponse.data : [];
 
-      // Carregar todas as tarefas e rotinas de todas as matérias
-      const allTasks = [];
-      const allRoutines = [];
+      // Enriquecer tarefas com informações de curso (nome da matéria já vem do backend)
+      const enrichedTasks = allTasks.map(task => ({
+        ...task,
+        subjectName: task.subjectName || 'Sem matéria',
+        professorName: task.professorName || 'Sem professor'
+      }));
 
-      for (const course of coursesData) {
-        try {
-          // Buscar matérias do curso
-          const subjectsResponse = await subjectsApi.list(course.id, token);
-          const subjects = Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
-
-          // Para cada matéria, buscar tarefas e rotinas de cada professor
-          for (const subject of subjects) {
-            if (subject.professorSubjects && Array.isArray(subject.professorSubjects)) {
-              for (const professorSubject of subject.professorSubjects) {
-                try {
-                  // Carregar tarefas do professor-matéria
-                  const tasksResponse = await tasksApi.listByProfessor(professorSubject.id, token);
-                  if (Array.isArray(tasksResponse.data)) {
-                    allTasks.push(...tasksResponse.data);
-                  }
-
-                  // Carregar rotinas do professor-matéria
-                  const routinesResponse = await routinesApi.listByProfessor(professorSubject.id, token);
-                  if (Array.isArray(routinesResponse.data)) {
-                    allRoutines.push(...routinesResponse.data);
-                  }
-                } catch (err) {
-                  console.error(`Erro ao carregar dados do professor-matéria ${professorSubject.id}:`, err);
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Erro ao carregar matérias do curso ${course.id}:`, err);
-        }
+      setTasks(enrichedTasks);
+      
+      // Carregar TODAS as rotinas do usuário (endpoint otimizado)
+      try {
+        const allRoutinesResponse = await routinesApi.getAllRoutines(token);
+        const allRoutines = Array.isArray(allRoutinesResponse.data) ? allRoutinesResponse.data : [];
+        
+        const enrichedRoutines = allRoutines.map(routine => ({
+          ...routine,
+          subjectName: routine.subjectName || 'Sem matéria',
+          professorName: routine.professorName || 'Sem professor'
+        }));
+        
+        setRoutines(enrichedRoutines);
+      } catch (err) {
+        console.warn('Erro ao carregar rotinas:', err);
+        setRoutines([]);
       }
-
-      setTasks(allTasks);
-      setRoutines(allRoutines);
+      
+      // Carregar cursos (para possíveis filtros futuros)
+      try {
+        const coursesResponse = await coursesApi.list(token);
+        const coursesList = Array.isArray(coursesResponse.data) ? coursesResponse.data : [];
+        setCourses(coursesList);
+      } catch (err) {
+        console.warn('Erro ao carregar cursos:', err);
+      }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError('Não foi possível carregar o cronograma');
@@ -141,7 +119,7 @@ export default function SchedulePage() {
   const getTasksForDate = (date) => {
     return tasks.filter(task => {
       if (!task.dueDate) return false;
-      const taskDate = parseLocalDate(getDateOnlyFromISO(task.dueDate)).toDateString();
+      const taskDate = new Date(task.dueDate).toDateString();
       return taskDate === date.toDateString();
     });
   };
@@ -149,9 +127,28 @@ export default function SchedulePage() {
   const getRoutinesForDate = (date) => {
     return routines.filter(routine => {
       if (!routine.dayOfWeek) return false;
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      // Mapa de dias da semana em JavaScript (0=Sunday) para português
+      const dayNames = ['DOMINGO', 'SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO'];
       return dayNames[date.getDay()] === routine.dayOfWeek;
     });
+  };
+
+  const getTaskTypeColor = (type) => {
+    const colors = {
+      'ATIVIDADE': '#3498db',
+      'TRABALHO': '#f39c12',
+      'PROVA': '#e74c3c'
+    };
+    return colors[type] || '#95a5a6';
+  };
+
+  const getTaskTypeLabel = (type) => {
+    const labels = {
+      'ATIVIDADE': 'Atividade',
+      'TRABALHO': 'Trabalho',
+      'PROVA': 'Prova'
+    };
+    return labels[type] || type;
   };
 
   if (loading) {
@@ -238,21 +235,34 @@ export default function SchedulePage() {
                         <div key={`routine-${routine.id}`} className="schedule-item routine-item">
                           <Clock size={14} />
                           <div className="item-content">
-                            <p className="item-title">{routine.title}</p>
-                            {routine.time && <span className="item-time">{routine.time}</span>}
+                            <p className="item-title">{routine.activity}</p>
+                            {routine.startTime && <span className="item-time">{routine.startTime} ({routine.duration}min)</span>}
+                            {routine.subjectName && <span className="item-subject">{routine.subjectName}</span>}
                           </div>
                         </div>
                       ))}
 
                       {getTasksForDate(date).map((task) => (
-                        <div key={`task-${task.id}`} className={`schedule-item task-item ${task.completed ? 'completed' : ''}`}>
+                        <div 
+                          key={`task-${task.id}`} 
+                          className={`schedule-item task-item ${task.completed ? 'completed' : ''}`}
+                          style={{ 
+                            borderLeftColor: getTaskTypeColor(task.type),
+                            borderLeftWidth: '3px',
+                            paddingLeft: '10px'
+                          }}
+                        >
                           {task.completed ? (
                             <CheckCircle2 size={14} color="#2ecc71" />
                           ) : (
-                            <Circle size={14} color="#e74c3c" />
+                            <Circle size={14} color={getTaskTypeColor(task.type)} />
                           )}
                           <div className="item-content">
                             <p className="item-title">{task.title}</p>
+                            {task.subjectName && <span className="item-subject">{task.subjectName}</span>}
+                            <span className="item-type" style={{ color: getTaskTypeColor(task.type), fontSize: '11px' }}>
+                              {getTaskTypeLabel(task.type)}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -302,12 +312,20 @@ export default function SchedulePage() {
 
       <div className="schedule-legend">
         <div className="legend-item">
+          <Circle size={14} color="#3498db" />
+          <span>Atividade</span>
+        </div>
+        <div className="legend-item">
+          <Circle size={14} color="#f39c12" />
+          <span>Trabalho</span>
+        </div>
+        <div className="legend-item">
           <Circle size={14} color="#e74c3c" />
-          <span>Tarefa pendente</span>
+          <span>Prova</span>
         </div>
         <div className="legend-item">
           <CheckCircle2 size={14} color="#2ecc71" />
-          <span>Tarefa concluída</span>
+          <span>Concluído</span>
         </div>
         <div className="legend-item">
           <Clock size={14} color="#3498db" />

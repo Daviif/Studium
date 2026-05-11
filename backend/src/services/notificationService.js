@@ -23,7 +23,8 @@ const emailTransporter = nodemailer.createTransport({
  * @returns {boolean}
  */
 function isInQuietHours(quietHoursStart, quietHoursEnd) {
-  if (!quietHoursStart || !quietHoursEnd) return false;
+  if (quietHoursStart === null || quietHoursStart === undefined ||
+      quietHoursEnd === null || quietHoursEnd === undefined) return false;
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -282,6 +283,7 @@ async function notifyTaskDueSoon(userId, task, user) {
 
 /**
  * Job que executa periodicamente para verificar tarefas próximas
+ * Notifica quando faltam X horas para a tarefa vencer
  * Deve ser executado por um cron job (ex: node-schedule, agenda, etc)
  */
 async function checkAndNotifyUpcomingTasks() {
@@ -297,8 +299,19 @@ async function checkAndNotifyUpcomingTasks() {
       },
     });
 
+    console.log(`📊 ${preferences.length} preferência(s) de notificação encontrada(s)`);
+
     for (const pref of preferences) {
-      // Busca tarefas deste usuário que vencerão em X dias
+      // Calcula o tempo em milissegundos para notificação
+      const notifyInMs = pref.notifyHoursBefore * 60 * 60 * 1000;
+      const now = new Date();
+      const windowEnd = new Date(now.getTime() + notifyInMs);
+
+      console.log(`\n👤 Processando: ${pref.user.email}`);
+      console.log(`   Hora de verificação: ${now.toLocaleString('pt-BR')}`);
+      console.log(`   Janela de notificação: até ${windowEnd.toLocaleString('pt-BR')} (${pref.notifyHoursBefore}h)`);
+
+      // Busca tarefas que vencerão em até X horas
       const tasks = await prisma.task.findMany({
         where: {
           professorSubject: {
@@ -310,16 +323,16 @@ async function checkAndNotifyUpcomingTasks() {
           },
           completed: false,
           dueDate: {
-            // Entre agora e daqui X dias
-            gte: new Date(),
-            lte: new Date(Date.now() + pref.notifyDaysBefore * 24 * 60 * 60 * 1000),
+            // Entre agora e daqui X horas
+            gte: now,
+            lte: new Date(now.getTime() + notifyInMs),
           },
-          // Não notificar duas vezes (notifiedAt mais recente < 24 horas atrás)
+          // Não notificar duas vezes (notifiedAt mais recente < 1 hora atrás)
           OR: [
             { notifiedAt: null },
             {
               notifiedAt: {
-                lt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                lt: new Date(Date.now() - 60 * 60 * 1000), // 1 hora
               },
             },
           ],
@@ -333,13 +346,16 @@ async function checkAndNotifyUpcomingTasks() {
         },
       });
 
+      console.log(`   ✓ Tarefas elegíveis: ${tasks.length}`);
+
       // Envia notificação para cada tarefa
       for (const task of tasks) {
+        console.log(`   📧 Notificando: "${task.title}" (Vence: ${task.dueDate.toLocaleString('pt-BR')})`);
         await notifyTaskDueSoon(pref.user.id, task, pref.user);
       }
     }
 
-    console.log('✅ Verificação de tarefas concluída');
+    console.log('\n✅ Verificação de tarefas concluída');
   } catch (error) {
     console.error(`❌ Erro ao verificar tarefas: ${error.message}`);
   }

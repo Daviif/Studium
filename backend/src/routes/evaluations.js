@@ -1,5 +1,4 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = require('../prisma');
 
@@ -137,6 +136,17 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { grade, maxGrade, weight } = req.body;
 
+    const existing = await prisma.evaluation.findFirst({
+      where: {
+        id: parseInt(id),
+        task: { professorSubject: { subject: { course: { userId: req.userId } } } }
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Avaliação não encontrada' });
+    }
+
     const evaluation = await prisma.evaluation.update({
       where: { id: parseInt(id) },
       data: {
@@ -164,6 +174,17 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    const existing = await prisma.evaluation.findFirst({
+      where: {
+        id: parseInt(id),
+        task: { professorSubject: { subject: { course: { userId: req.userId } } } }
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Avaliação não encontrada' });
+    }
+
     await prisma.evaluation.delete({
       where: { id: parseInt(id) }
     });
@@ -185,7 +206,11 @@ router.get('/subject/:subjectId/final-grade', async (req, res) => {
 
     // Busca todas as tarefas da matéria com suas avaliações
     const tasks = await prisma.task.findMany({
-      where: { subjectId: parseInt(subjectId) },
+      where: {
+        professorSubject: {
+          subjectId: parseInt(subjectId)
+        }
+      },
       include: { evaluation: true }
     });
 

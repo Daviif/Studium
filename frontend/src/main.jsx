@@ -8,12 +8,11 @@ import SignupPage from './pages/SignupPage.jsx'
 import CourseDetailsPage from './pages/CourseDetailsPage.jsx'
 import SubjectsDetailsPage from './pages/SubjectsDetailsPage.jsx'
 import SchedulePage from './pages/SchedulePage.jsx'
+import RoutinesPage from './pages/RoutinesPage.jsx'
 import CoursesPage from './pages/CoursesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
-import ProtectedRoute from './components/ProtectedRoute.jsx'
-import DashboardLayout from './components/DashboardLayout.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
-import { SidebarProvider } from './contexts/SidebarContext.jsx'
+import AuthLayout from './components/AuthLayout.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -22,78 +21,15 @@ createRoot(document.getElementById('root')).render(
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <App />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/courses/:courseId"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <CourseDetailsPage />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/courses/:courseId/subjects/:subjectId"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <SubjectsDetailsPage />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/schedule"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <SchedulePage />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/courses"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <CoursesPage />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <SidebarProvider>
-                  <DashboardLayout>
-                    <ProfilePage />
-                  </DashboardLayout>
-                </SidebarProvider>
-              </ProtectedRoute>
-            }
-          />
+          <Route element={<AuthLayout />}>
+            <Route path="/" element={<App />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
+            <Route path="/courses/:courseId/subjects/:subjectId" element={<SubjectsDetailsPage />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/routines" element={<RoutinesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

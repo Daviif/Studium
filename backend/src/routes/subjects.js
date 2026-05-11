@@ -158,14 +158,7 @@ router.get('/:id/progress', async (req, res) => {
       return {
         professorSubjectId: professorSubject.id,
         professor: professorSubject.professor.name,
-       
-      include: {
-        professorSubjects: {
-          include: {
-            professor: true
-          }
-        }
-      }, semestre: professorSubject.semestre,
+        semestre: professorSubject.semestre,
         progress,
         totalTasks: tasks.length,
         completedTasks: tasks.filter(t => t.completed).length,
@@ -246,6 +239,14 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, description, period } = req.body;
 
+    const existing = await prisma.subject.findFirst({
+      where: { id: parseInt(id), course: { userId: req.userId } }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Matéria não encontrada' });
+    }
+
     const subject = await prisma.subject.update({
       where: { id: parseInt(id) },
       data: {
@@ -276,6 +277,14 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.subject.findFirst({
+      where: { id: parseInt(id), course: { userId: req.userId } }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Matéria não encontrada' });
+    }
 
     await prisma.subject.delete({
       where: { id: parseInt(id) }
@@ -402,6 +411,143 @@ router.delete('/:id/professors/:professorSubjectId', async (req, res) => {
   } catch (error) {
     console.error('Erro ao remover professor:', error);
     res.status(500).json({ error: 'Erro ao remover professor' });
+  }
+});
+
+// ============================================================================
+// POST: Classificar matérias automaticamente pelo período atual do aluno
+// Rota: POST /api/subjects/bulk-classify
+// Body: { courseId, currentPeriod: 5, semester: "2026/1" }
+// ============================================================================
+router.post('/bulk-classify', async (req, res) => {
+  try {
+    const { courseId, currentPeriod, semester } = req.body;
+
+    if (!courseId || !currentPeriod) {
+      return res.status(400).json({ error: 'courseId e currentPeriod são obrigatórios' });
+    }
+
+    const course = await prisma.course.findFirst({
+      where: { id: parseInt(courseId), userId: req.userId }
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Curso não encontrado' });
+    }
+
+    const subjects = await prisma.subject.findMany({
+      where: { courseId: parseInt(courseId) }
+    });
+
+    const classified = [];
+
+    for (const subject of subjects) {
+      const period = parseInt(subject.period);
+      const current = parseInt(currentPeriod);
+
+      // Só classifica matérias obrigatórias com período definido
+      if (subject.type !== 'OBRIGATORIA' || !subject.period || isNaN(period)) continue;
+
+      let newStatus;
+      if (period < current) {
+        newStatus = 'APROVADA';
+      } else if (period === current) {
+        newStatus = 'ATIVA';
+      } else {
+        newStatus = 'PENDENTE';
+      }
+
+      if (subject.status !== newStatus) {
+        await prisma.subject.update({ where: { id: subject.id }, data: { status: newStatus } });
+        await prisma.subjectStatusHistory.create({
+          data: {
+            subjectId: subject.id,
+            status: newStatus,
+            semester: semester || null,
+            note: 'Classificação automática por período'
+          }
+        });
+        classified.push({ subjectId: subject.id, name: subject.name, status: newStatus });
+      }
+    }
+
+    res.json({ classified, count: classified.length });
+  } catch (error) {
+    console.error('Erro ao classificar matérias:', error);
+    res.status(500).json({ error: 'Erro ao classificar matérias' });
+  }
+});
+
+// ============================================================================
+// PATCH: Alterar status de uma matéria
+// Rota: PATCH /api/subjects/:id/status
+// Body: { status: "ATIVA", semester?: "2026/1", note?: "Matriculado no sistema" }
+// ============================================================================
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, semester, note } = req.body;
+
+    const validStatuses = ['APROVADA', 'ATIVA', 'TRANCADA', 'REPROVADA', 'PENDENTE', 'DISPENSADA'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Status inválido. Use: ${validStatuses.join(', ')}` });
+    }
+
+    const existing = await prisma.subject.findFirst({
+      where: { id: parseInt(id), course: { userId: req.userId } }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Matéria não encontrada' });
+    }
+
+    const [updated] = await prisma.$transaction([
+      prisma.subject.update({
+        where: { id: parseInt(id) },
+        data: { status }
+      }),
+      prisma.subjectStatusHistory.create({
+        data: {
+          subjectId: parseInt(id),
+          status,
+          semester: semester || null,
+          note: note || null
+        }
+      })
+    ]);
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao alterar status:', error);
+    res.status(500).json({ error: 'Erro ao alterar status' });
+  }
+});
+
+// ============================================================================
+// GET: Histórico de status de uma matéria
+// Rota: GET /api/subjects/:id/history
+// ============================================================================
+router.get('/:id/history', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.subject.findFirst({
+      where: { id: parseInt(id), course: { userId: req.userId } }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Matéria não encontrada' });
+    }
+
+    const history = await prisma.subjectStatusHistory.findMany({
+      where: { subjectId: parseInt(id) },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(history);
+  } catch (error) {
+    console.error('Erro ao buscar histórico:', error);
+    res.status(500).json({ error: 'Erro ao buscar histórico de status' });
   }
 });
 

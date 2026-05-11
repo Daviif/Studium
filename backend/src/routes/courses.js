@@ -159,6 +159,14 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, university } = req.body;
 
+    const existing = await prisma.course.findFirst({
+      where: { id: parseInt(id), userId: req.userId }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Curso não encontrado' });
+    }
+
     const course = await prisma.course.update({
       where: { id: parseInt(id) },
       data: {
@@ -181,6 +189,14 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.course.findFirst({
+      where: { id: parseInt(id), userId: req.userId }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Curso não encontrado' });
+    }
 
     await prisma.course.delete({
       where: { id: parseInt(id) }
