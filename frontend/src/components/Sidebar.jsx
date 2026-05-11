@@ -6,7 +6,8 @@ import {
   LibraryBig,
   LayoutDashboard,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,6 +98,16 @@ export default function Sidebar() {
           >
             <CalendarDays size={18} />
             <span>Cronograma</span>
+          </button>
+
+          <button 
+            className={`menu-item ${getActiveClass('/routines')}`}
+            onClick={() => navigate('/routines')} 
+            type="button"
+            title="Rotinas"
+          >
+            <Zap size={18} />
+            <span>Rotinas</span>
           </button>
 
           <button className="menu-item" type="button" title="Relatórios">

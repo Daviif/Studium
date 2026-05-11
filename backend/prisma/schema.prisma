@@ -58,22 +58,38 @@ model Course {
 // MATÉRIAS
 // ============================================================================
 model Subject {
-  id          Int         @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   description String?
-  period      String? // Período da matéria no currículo (ex: "1º período", "2º período")
-  type        SubjectType @default(OBRIGATORIA) // Tipo: Obrigatória, Eletiva, Facultativa
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  period      String?       // Período da matéria no currículo (ex: "1º período", "2º período")
+  type        SubjectType   @default(OBRIGATORIA)
+  status      SubjectStatus @default(PENDENTE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   // Chave estrangeira: a qual curso pertence esta matéria
   courseId Int
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  // Relação: uma matéria tem muitos professores (via ProfessorSubject)
+  // Relações
   professorSubjects ProfessorSubject[]
+  statusHistory     SubjectStatusHistory[]
 
   @@map("subjects")
+}
+
+// Histórico de mudanças de status de uma matéria
+model SubjectStatusHistory {
+  id        Int           @id @default(autoincrement())
+  subjectId Int
+  subject   Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  status    SubjectStatus
+  semester  String?       // "2026/1"
+  note      String?       // motivo da mudança
+  createdAt DateTime      @default(now())
+
+  @@map("subject_status_history")
 }
 
 // ============================================================================
@@ -155,6 +171,16 @@ enum SubjectType {
   OPTATIVA
   FACULTATIVA
   EXTENSAO
+}
+
+// Status da matéria no histórico acadêmico do aluno
+enum SubjectStatus {
+  PENDENTE    // ainda não cursou
+  ATIVA       // matriculado neste semestre
+  APROVADA    // concluída com sucesso
+  REPROVADA   // cursou e reprovou
+  TRANCADA    // matrícula trancada
+  DISPENSADA  // aproveitamento de estudos
 }
 
 // Tipos de tarefas
@@ -276,6 +302,9 @@ model NotificationPreference {
 
   // Em quantos dias antes notificar?
   notifyDaysBefore Int @default(2)
+
+  // Em quantas horas antes notificar? (ex: 1 hora antes do vencimento)
+  notifyHoursBefore Int @default(1)
 
   // Só notificar em certos horários?
   quietHoursStart Int? // 23 = 23h

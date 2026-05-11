@@ -258,7 +258,8 @@
 }
 
 .item-time,
-.item-weight {
+.item-weight,
+.item-subject {
   color: #60779a;
   font-size: 11px;
 }

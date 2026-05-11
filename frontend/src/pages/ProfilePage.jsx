@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, User, Lock, LogOut, Check, X } from 'lucide-react';
+import { ArrowLeft, Mail, User, Lock, LogOut, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../services/api';
 import './Profile.css';
@@ -28,10 +28,14 @@ export default function ProfilePage() {
 
   const [prefs, setPrefs] = useState({
     emailNotifications: true,
-    notifyDaysBefore: 1,
+    pushNotifications: true,
+    inAppNotifications: true,
+    notifyHoursBefore: 1,
     quietHoursStart: 22,
     quietHoursEnd: 8,
   });
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -39,8 +43,24 @@ export default function ProfilePage() {
         name: user.name || '',
         email: user.email || '',
       });
+      loadNotificationPreferences();
     }
   }, [user]);
+
+  const loadNotificationPreferences = async () => {
+    try {
+      setPrefsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await authApi.getNotificationPreferences(token);
+      if (response.data?.preferences) {
+        setPrefs(response.data.preferences);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar preferências:', err);
+    } finally {
+      setPrefsLoading(false);
+    }
+  };
 
   const handleEditProfile = async (e) => {
     e.preventDefault();
@@ -116,6 +136,27 @@ export default function ProfilePage() {
     if (window.confirm('Tem certeza que deseja sair?')) {
       logout();
       navigate('/login');
+    }
+  };
+
+  const handleSavePreferences = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      await authApi.updateNotificationPreferences(prefs, token);
+      
+      setSuccess('Preferências de notificação atualizadas com sucesso!');
+      setIsEditingPreferences(false);
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao atualizar preferências. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -238,52 +279,137 @@ export default function ProfilePage() {
         <div className="profile-card">
           <div className="card-header">
             <h3>Preferências de Notificações</h3>
+            {!isEditingPreferences && (
+              <button
+                className="edit-btn"
+                onClick={() => setIsEditingPreferences(true)}
+              >
+                Editar
+              </button>
+            )}
           </div>
-          
-          <div className="preferences-form">
-            <div className="preference-group">
-              <label className="checkbox-label">
-                <input 
-                  type="checkbox" 
-                  defaultChecked={prefs.emailNotifications}
-                />
-                <span>Receber notificações por email</span>
-              </label>
-            </div>
-            
-            <div className="preference-group">
-              <label htmlFor="days">Notificar com antecedência</label>
-              <div className="input-with-label">
-                <input 
-                  id="days"
-                  type="number" 
-                  min="0" 
-                  max="7" 
-                  defaultValue={prefs.notifyDaysBefore}
-                  className="small-input"
-                />
-                <span className="input-suffix">dias antes</span>
+
+          {prefsLoading ? (
+            <p>Carregando preferências...</p>
+          ) : isEditingPreferences ? (
+            <form onSubmit={handleSavePreferences} className="profile-form">
+              <div className="preference-group">
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={prefs.emailNotifications}
+                    onChange={(e) => setPrefs({...prefs, emailNotifications: e.target.checked})}
+                  />
+                  <span>Receber notificações por email</span>
+                </label>
+              </div>
+
+              <div className="preference-group">
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={prefs.inAppNotifications}
+                    onChange={(e) => setPrefs({...prefs, inAppNotifications: e.target.checked})}
+                  />
+                  <span>Receber notificações no aplicativo</span>
+                </label>
+              </div>
+
+              <div className="preference-group">
+                <label htmlFor="hours">Notificar com antecedência</label>
+                <div className="input-with-label">
+                  <input 
+                    id="hours"
+                    type="number" 
+                    min="0" 
+                    max="72" 
+                    value={prefs.notifyHoursBefore}
+                    onChange={(e) => setPrefs({...prefs, notifyHoursBefore: parseInt(e.target.value) || 0})}
+                    className="small-input"
+                    disabled={loading}
+                  />
+                  <span className="input-suffix">horas antes</span>
+                </div>
+                <small>Quanto tempo antes do vencimento você quer ser notificado?</small>
+              </div>
+
+              <div className="preference-group">
+                <label>Horas de silêncio</label>
+                <div className="time-range">
+                  <input 
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={prefs.quietHoursStart}
+                    onChange={(e) => setPrefs({...prefs, quietHoursStart: parseInt(e.target.value) || 0})}
+                    className="time-input"
+                    disabled={loading}
+                  />
+                  <span className="time-separator">até</span>
+                  <input 
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={prefs.quietHoursEnd}
+                    onChange={(e) => setPrefs({...prefs, quietHoursEnd: parseInt(e.target.value) || 0})}
+                    className="time-input"
+                    disabled={loading}
+                  />
+                </div>
+                <small>Durante este período, você não receberá notificações (ex: 23 até 8 = 23h até 8h)</small>
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setIsEditingPreferences(false)}
+                  disabled={loading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={loading}
+                >
+                  {loading ? 'Salvando...' : 'Salvar Preferências'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="preferences-form">
+              <div className="preference-group">
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={prefs.emailNotifications}
+                    disabled
+                  />
+                  <span>Notificações por email: {prefs.emailNotifications ? 'Ativadas' : 'Desativadas'}</span>
+                </label>
+              </div>
+
+              <div className="preference-group">
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={prefs.inAppNotifications}
+                    disabled
+                  />
+                  <span>Notificações no app: {prefs.inAppNotifications ? 'Ativadas' : 'Desativadas'}</span>
+                </label>
+              </div>
+
+              <div className="preference-group">
+                <strong>Notificar com:</strong> {prefs.notifyHoursBefore} hora{prefs.notifyHoursBefore !== 1 ? 's' : ''} de antecedência
+              </div>
+
+              <div className="preference-group">
+                <strong>Horas de silêncio:</strong> {String(prefs.quietHoursStart).padStart(2, '0')}:00 até {String(prefs.quietHoursEnd).padStart(2, '0')}:00
               </div>
             </div>
-            
-            <div className="preference-group">
-              <label>Horas de silêncio</label>
-              <div className="time-range">
-                <input 
-                  type="time" 
-                  defaultValue={`${String(prefs.quietHoursStart).padStart(2, '0')}:00`}
-                  className="time-input"
-                />
-                <span className="time-separator">até</span>
-                <input 
-                  type="time" 
-                  defaultValue={`${String(prefs.quietHoursEnd).padStart(2, '0')}:00`}
-                  className="time-input"
-                />
-              </div>
-              <small>Durante este período, você não receberá notificações</small>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Mudar Senha */}

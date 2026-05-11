@@ -101,6 +101,18 @@ app.use('/api/files', authenticateToken, filesRouter);
 app.use('/api/professors', authenticateToken, professorsRouter);
 app.use('/api/evaluations', authenticateToken, evaluationsRouter);
 app.use('/api/notifications', authenticateToken, require('./routes/notifications'));
+app.use('/api/enrollment', authenticateToken, require('./routes/enrollment'));
+// ============================================================================
+// TRATAMENTO DE ERROS GLOBAL
+// ============================================================================
+app.use((err, req, res, next) => {
+  console.error('❌ Erro:', err.message);
+  res.status(500).json({
+    error: 'Erro interno do servidor',
+    message: err.message
+  });
+});
+
 // ============================================================================
 // INICIAR SERVIDOR
 // ============================================================================
@@ -109,17 +121,6 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
-});
-
-// ============================================================================
-// TRATAMENTO DE ERROS GLOBAL
-// ============================================================================
-app.use((err, req, res, next) => {
-  console.error('❌ Erro:', err.message);
-  res.status(500).json({ 
-    error: 'Erro interno do servidor',
-    message: err.message 
-  });
 });
 
 // Graceful shutdown

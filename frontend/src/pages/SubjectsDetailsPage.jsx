@@ -6,24 +6,6 @@ import { subjectsApi, tasksApi, filesApi, routinesApi, evaluationsApi } from '..
 import ProfessorsModal from '../components/ProfessorsModal';
 import './SubjectsDetails.css';
 
-// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
-const getDateOnlyFromISO = (isoString) => {
-  if (!isoString) return null;
-  // Se for string de data simples (YYYY-MM-DD), retorna como está
-  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
-    return isoString;
-  }
-  // Se for ISO (com T), pega apenas a parte antes do T
-  return isoString.split('T')[0];
-};
-
-// Função auxiliar para criar Data a partir de string YYYY-MM-DD
-const parseLocalDate = (dateString) => {
-  if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
 // Função para calcular status da tarefa
 const getTaskStatus = (dueDate, completed) => {
   if (completed) return { type: 'completed', label: 'Concluída', color: '#2ecc71' };
@@ -33,9 +15,7 @@ const getTaskStatus = (dueDate, completed) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Extrai apenas a data (YYYY-MM-DD) e faz parsing local
-  const dueDateOnly = getDateOnlyFromISO(dueDate);
-  const due = parseLocalDate(dueDateOnly);
+  const due = new Date(dueDate);
   due.setHours(0, 0, 0, 0);
   
   const diffTime = due - today;
@@ -300,7 +280,10 @@ export default function SubjectDetailsPage() {
               Nova Tarefa
             </button>
 
-            <button className="add-task-button" onClick={() => setIsProvaModalOpen(true)}>
+            <button className="add-task-button" onClick={() => {
+              setFormData({ title: '', description: '', dueDate: '', weight: 1.0, type: 'PROVA' });
+              setIsProvaModalOpen(true);
+            }}>
               <Zap size={18} />
               Nova Prova
             </button>
@@ -370,7 +353,7 @@ export default function SubjectDetailsPage() {
                         {task.dueDate && (
                           <span className="task-date">
                             <Calendar size={14} />
-                            {parseLocalDate(getDateOnlyFromISO(task.dueDate)).toLocaleDateString('pt-BR')}
+                            {new Date(task.dueDate).toLocaleDateString('pt-BR')}
                           </span>
                         )}
                       </div>
@@ -524,16 +507,16 @@ export default function SubjectDetailsPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Nova Prova</h2>
             <p>Para {selectedProfessorSubject?.professor.name || 'este professor'}</p>
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
-              handleCreateTask(e);
+              await handleCreateTask(e);
               setIsProvaModalOpen(false);
             }}>
               <label>Título</label>
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value, type: 'PROVA' })}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Ex: Prova de Cálculo"
                 disabled={isSaving}
               />

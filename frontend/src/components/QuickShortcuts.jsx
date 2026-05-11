@@ -1,24 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, BookOpen, Zap } from 'lucide-react';
+import { AlertCircle, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { coursesApi, subjectsApi, tasksApi } from '../services/api';
+import { tasksApi } from '../services/api';
 import '../styles/QuickShortcuts.css';
-
-// Função auxiliar para extrair apenas a data (YYYY-MM-DD) sem timezone
-const getDateOnlyFromISO = (isoString) => {
-  if (!isoString) return null;
-  if (isoString.length === 10 && isoString[4] === '-' && isoString[7] === '-') {
-    return isoString;
-  }
-  return isoString.split('T')[0];
-};
-
-// Função auxiliar para criar Data a partir de string YYYY-MM-DD
-const parseLocalDate = (dateString) => {
-  if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
 
 export default function QuickShortcuts() {
   const { token } = useAuth();
@@ -35,50 +19,27 @@ export default function QuickShortcuts() {
   const loadQuickData = async () => {
     try {
       setLoading(true);
-      
-      // Carregar todos os cursos
-      const coursesResponse = await coursesApi.list(token);
-      const courses = Array.isArray(coursesResponse.data) ? coursesResponse.data : [];
 
-      // Dados agregados
-      const allTasks = [];
+      // Uma única chamada para buscar todas as tarefas do usuário
+      const allTasksResponse = await tasksApi.getAllTasks(token);
+      const allTasksList = Array.isArray(allTasksResponse.data) ? allTasksResponse.data : [];
+
+      const incompleteTasks = allTasksList.filter(task => !task.completed);
+
+      // Agregar tarefas por matéria
       const subjectsTaskCount = {};
-
-      // Iterar sobre cada curso e matéria para pegar tarefas
-      for (const course of courses) {
-        const subjectsResponse = await subjectsApi.list(course.id, token);
-        const subjects = Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
-
-        for (const subject of subjects) {
-          // Inicializar contador de tarefas por matéria
-          if (!subjectsTaskCount[subject.id]) {
-            subjectsTaskCount[subject.id] = {
-              name: subject.name,
-              count: 0,
-              courseId: course.id,
-              subjectId: subject.id,
-              tasks: []
-            };
-          }
-
-          // Pegar tarefas da matéria
-          const tasksResponse = await tasksApi.list(subject.id, token);
-          const tasks = Array.isArray(tasksResponse.data) ? tasksResponse.data : [];
-
-          tasks.forEach(task => {
-            if (!task.completed) {
-              allTasks.push({
-                ...task,
-                subjectId: subject.id,
-                subjectName: subject.name,
-                courseId: course.id
-              });
-              subjectsTaskCount[subject.id].count += 1;
-              subjectsTaskCount[subject.id].tasks.push(task);
-            }
-          });
+      incompleteTasks.forEach(task => {
+        const subjectId = task.professorSubject?.subject?.id;
+        if (!subjectId) return;
+        if (!subjectsTaskCount[subjectId]) {
+          subjectsTaskCount[subjectId] = {
+            name: task.subjectName || task.professorSubject.subject.name,
+            count: 0,
+            subjectId
+          };
         }
-      }
+        subjectsTaskCount[subjectId].count += 1;
+      });
 
       // Filtrar tarefas prestes a expirar (próximos 7 dias)
       const today = new Date();
@@ -86,26 +47,21 @@ export default function QuickShortcuts() {
       const sevenDaysFromNow = new Date(today);
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-      const upcomingTasks = allTasks
+      const upcomingTasks = incompleteTasks
         .filter(task => {
           if (!task.dueDate) return false;
-          const dueDate = parseLocalDate(getDateOnlyFromISO(task.dueDate));
+          const dueDate = new Date(task.dueDate);
           dueDate.setHours(0, 0, 0, 0);
           return dueDate >= today && dueDate <= sevenDaysFromNow;
         })
-        .sort((a, b) => parseLocalDate(getDateOnlyFromISO(a.dueDate)) - parseLocalDate(getDateOnlyFromISO(b.dueDate)))
-        .slice(0, 5); // Top 5
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .slice(0, 5);
 
-      // Matérias prioritárias (com mais tarefas pendentes)
       const prioritySubjects = Object.values(subjectsTaskCount)
-        .filter(s => s.count > 0)
         .sort((a, b) => b.count - a.count)
-        .slice(0, 4); // Top 4
+        .slice(0, 4);
 
-      setData({
-        upcomingTasks,
-        prioritySubjects
-      });
+      setData({ upcomingTasks, prioritySubjects });
     } catch (error) {
       console.error('Erro ao carregar dados rápidos:', error);
     } finally {

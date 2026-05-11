@@ -131,29 +131,36 @@ router.delete('/:id', async (req, res) => {
 // ============================================================================
 router.get('/preferences', async (req, res) => {
   try {
+    console.log('📍 GET /preferences - userId:', req.userId);
+    
     let preferences = await prisma.notificationPreference.findUnique({
       where: { userId: req.userId },
     });
 
     // Cria preferências padrão se não existir
     if (!preferences) {
+      console.log('🆕 Criando preferências padrão para usuário:', req.userId);
       preferences = await prisma.notificationPreference.create({
         data: {
           userId: req.userId,
           emailNotifications: true,
           pushNotifications: true,
           inAppNotifications: true,
-          notifyDaysBefore: 2,
+          notifyHoursBefore: 1,
           quietHoursStart: 23,
           quietHoursEnd: 8,
         },
       });
+      console.log('✅ Preferências criadas:', preferences);
+    } else {
+      console.log('✅ Preferências encontradas:', preferences);
     }
 
     res.json({ preferences });
   } catch (error) {
-    console.error('Erro ao buscar preferências:', error);
-    res.status(500).json({ error: 'Erro ao buscar preferências' });
+    console.error('❌ Erro ao buscar preferências:', error.message);
+    console.error('Stack completo:', error);
+    res.status(500).json({ error: 'Erro ao buscar preferências', details: error.message });
   }
 });
 
@@ -166,6 +173,7 @@ router.get('/preferences', async (req, res) => {
 //   pushNotifications?: boolean,
 //   inAppNotifications?: boolean,
 //   notifyDaysBefore?: number,
+//   notifyHoursBefore?: number,
 //   quietHoursStart?: number,
 //   quietHoursEnd?: number
 // }
@@ -177,6 +185,7 @@ router.patch('/preferences', async (req, res) => {
       pushNotifications,
       inAppNotifications,
       notifyDaysBefore,
+      notifyHoursBefore,
       quietHoursStart,
       quietHoursEnd,
     } = req.body;
@@ -186,6 +195,14 @@ router.patch('/preferences', async (req, res) => {
       if (notifyDaysBefore < 0 || notifyDaysBefore > 30) {
         return res.status(400).json({
           error: 'notifyDaysBefore deve estar entre 0 e 30',
+        });
+      }
+    }
+
+    if (notifyHoursBefore !== undefined) {
+      if (notifyHoursBefore < 0 || notifyHoursBefore > 72) {
+        return res.status(400).json({
+          error: 'notifyHoursBefore deve estar entre 0 e 72 horas',
         });
       }
     }
@@ -217,6 +234,7 @@ router.patch('/preferences', async (req, res) => {
           inAppNotifications:
             inAppNotifications !== undefined ? inAppNotifications : true,
           notifyDaysBefore: notifyDaysBefore ?? 2,
+          notifyHoursBefore: notifyHoursBefore ?? 1,
           quietHoursStart: quietHoursStart,
           quietHoursEnd: quietHoursEnd,
         },
@@ -230,6 +248,7 @@ router.patch('/preferences', async (req, res) => {
           ...(pushNotifications !== undefined && { pushNotifications }),
           ...(inAppNotifications !== undefined && { inAppNotifications }),
           ...(notifyDaysBefore !== undefined && { notifyDaysBefore }),
+          ...(notifyHoursBefore !== undefined && { notifyHoursBefore }),
           ...(quietHoursStart !== undefined && { quietHoursStart }),
           ...(quietHoursEnd !== undefined && { quietHoursEnd }),
         },

@@ -17,6 +17,56 @@ function parseDateAsLocal(dateString) {
 }
 
 // ============================================================================
+// GET: Listar TODAS as tarefas do usuário autenticado (para calendários)
+// Rota: GET /api/tasks/all/user
+// Retorna tarefas de todos os cursos e matérias do usuário
+// ============================================================================
+router.get('/all/user', async (req, res) => {
+  try {
+    const userId = req.userId; // Do middleware de autenticação
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autenticado' });
+    }
+
+    // Busca todas as tarefas do usuário (através dos cursos)
+    const tasks = await prisma.task.findMany({
+      where: {
+        professorSubject: {
+          subject: {
+            course: {
+              userId: userId
+            }
+          }
+        }
+      },
+      include: {
+        professorSubject: {
+          include: {
+            subject: { select: { id: true, name: true } },
+            professor: { select: { id: true, name: true } }
+          }
+        },
+        evaluation: true
+      },
+      orderBy: { dueDate: 'asc' }
+    });
+
+    // Enriquecer com informações adicionais
+    const enrichedTasks = tasks.map(task => ({
+      ...task,
+      subjectName: task.professorSubject.subject.name,
+      professorName: task.professorSubject.professor.name
+    }));
+
+    res.json(enrichedTasks);
+  } catch (error) {
+    console.error('Erro ao buscar tarefas do usuário:', error);
+    res.status(500).json({ error: 'Erro ao buscar tarefas' });
+  }
+});
+
+// ============================================================================
 // GET: Listar tarefas de um professor-matéria
 // Rota: GET /api/tasks?professorSubjectId=1
 // Query params opcionais: subjectId (para compatibilidade)
@@ -74,8 +124,11 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const task = await prisma.task.findUnique({
-      where: { id: parseInt(id) },
+    const task = await prisma.task.findFirst({
+      where: {
+        id: parseInt(id),
+        professorSubject: { subject: { course: { userId: req.userId } } }
+      },
       include: { evaluation: true }
     });
 
@@ -102,10 +155,12 @@ router.post('/', async (req, res) => {
     // Priorizar professorSubjectId, mas aceitar subjectId para compatibilidade
     let finalProfessorSubjectId = professorSubjectId;
 
-    if (!finalProfessorSubjectId && !title) {
-      return res.status(400).json({ 
-        error: 'title é obrigatório' 
-      });
+    if (!title) {
+      return res.status(400).json({ error: 'title é obrigatório' });
+    }
+
+    if (!finalProfessorSubjectId && !subjectId) {
+      return res.status(400).json({ error: 'professorSubjectId é obrigatório' });
     }
 
     if (!finalProfessorSubjectId && subjectId) {
@@ -129,14 +184,17 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Verificar se o professorSubject existe
-    const professorSubject = await prisma.professorSubject.findUnique({
-      where: { id: parseInt(finalProfessorSubjectId) }
+    // Verificar se o professorSubject existe e pertence ao usuário autenticado
+    const professorSubject = await prisma.professorSubject.findFirst({
+      where: {
+        id: parseInt(finalProfessorSubjectId),
+        subject: { course: { userId: req.userId } }
+      }
     });
 
     if (!professorSubject) {
-      return res.status(404).json({ 
-        error: 'Professor-Matéria não encontrado' 
+      return res.status(404).json({
+        error: 'Professor-Matéria não encontrado'
       });
     }
 
@@ -170,6 +228,17 @@ router.patch('/:id/complete', async (req, res) => {
     const { id } = req.params;
     const { completed } = req.body;
 
+    const existing = await prisma.task.findFirst({
+      where: {
+        id: parseInt(id),
+        professorSubject: { subject: { course: { userId: req.userId } } }
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tarefa não encontrada' });
+    }
+
     const task = await prisma.task.update({
       where: { id: parseInt(id) },
       data: { completed }
@@ -190,6 +259,17 @@ router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, type, weight, dueDate, priority, completed } = req.body;
+
+    const existing = await prisma.task.findFirst({
+      where: {
+        id: parseInt(id),
+        professorSubject: { subject: { course: { userId: req.userId } } }
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tarefa não encontrada' });
+    }
 
     const task = await prisma.task.update({
       where: { id: parseInt(id) },
@@ -218,6 +298,17 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.task.findFirst({
+      where: {
+        id: parseInt(id),
+        professorSubject: { subject: { course: { userId: req.userId } } }
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tarefa não encontrada' });
+    }
 
     await prisma.task.delete({
       where: { id: parseInt(id) }

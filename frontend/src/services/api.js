@@ -70,6 +70,15 @@ export const subjectsApi = {
   update: (id, data, token) => api.patch(`/subjects/${id}`, data, {
     headers: { Authorization: `Bearer ${token}` }
   }),
+  updateStatus: (id, data, token) => api.patch(`/subjects/${id}/status`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  getHistory: (id, token) => api.get(`/subjects/${id}/history`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  classifyByPeriod: (data, token) => api.post('/subjects/bulk-classify', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
   delete: (id, token) => api.delete(`/subjects/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
   }),
@@ -89,6 +98,10 @@ export const subjectsApi = {
 // TAREFAS
 // ============================================================================
 export const tasksApi = {
+  // Novo: listar TODAS as tarefas do usuário (para calendários)
+  getAllTasks: (token) => api.get('/tasks/all/user', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
   // Novo: aceita professorSubjectId
   listByProfessor: (professorSubjectId, token) => api.get(`/tasks?professorSubjectId=${professorSubjectId}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -118,6 +131,10 @@ export const tasksApi = {
 // ROTINAS
 // ============================================================================
 export const routinesApi = {
+  // Novo: listar TODAS as rotinas do usuário (para calendários)
+  getAllRoutines: (token) => api.get('/routines/all/user', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
   // Novo: aceita professorSubjectId
   listByProfessor: (professorSubjectId, token) => api.get(`/routines?professorSubjectId=${professorSubjectId}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -127,6 +144,9 @@ export const routinesApi = {
     headers: { Authorization: `Bearer ${token}` }
   }),
   create: (data, token) => api.post('/routines', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  update: (id, data, token) => api.patch(`/routines/${id}`, data, {
     headers: { Authorization: `Bearer ${token}` }
   }),
   delete: (id, token) => api.delete(`/routines/${id}`, {
@@ -171,6 +191,12 @@ export const authApi = {
   }),
   changePassword: (data, token) => api.post('/auth/change-password', data, {
     headers: { Authorization: `Bearer ${token}` }
+  }),
+  getNotificationPreferences: (token) => api.get('/notifications/preferences', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+  updateNotificationPreferences: (data, token) => api.patch('/notifications/preferences', data, {
+    headers: { Authorization: `Bearer ${token}` }
   })
 };
 
@@ -196,6 +222,21 @@ export const evaluationsApi = {
   }),
   // Deletar avaliação
   delete: (id, token) => api.delete(`/evaluations/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+};
+
+// ============================================================================
+// IMPORTAÇÃO DE ATESTADO DE MATRÍCULA
+// ============================================================================
+export const enrollmentApi = {
+  parse: (formData, token) => api.post('/enrollment/parse', formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
+  apply: (data, token) => api.post('/enrollment/apply', data, {
     headers: { Authorization: `Bearer ${token}` }
   })
 };
