@@ -130,6 +130,7 @@
   font-weight: 500;
 }
 .no-schedule { font-size: 11px; color: #9ca3af; font-style: italic; margin-left: 26px; }
+.no-schedule.quota-warn { color: #d97706; }
 
 .enrollment-unmatched {
   background: #fffbeb;
