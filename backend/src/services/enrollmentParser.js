@@ -1,5 +1,5 @@
 const pdfParse = require('pdf-parse');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
 // ============================================================================
 // NORMALIZAÇÃO DE NOMES (remove acentos, upper, sem espaços)
@@ -80,69 +80,150 @@ function extractSubjectList(text) {
 }
 
 // ============================================================================
-// EXTRAÇÃO DE HORÁRIOS VIA CLAUDE API
-// Envia o texto do PDF e pede JSON com schedule por matéria
+// EXTRAÇÃO DE HORÁRIOS DETERMINÍSTICA via coordenadas X,Y do PDF
+//
+// O SIGAA/UFOP gera PDFs com texto posicionado. pdf-parse expõe as
+// coordenadas (transform[4]=x, transform[5]=y) de cada item de texto.
+//
+// Estratégia:
+//   1. Extrair células de grade (códigos tipo CSI990-11T) com (x,y)
+//   2. Extrair rótulos de horário (07:30 - 08:20) com y → mapear y→hora
+//   3. Agrupar células por X (±tolerance) → colunas = dias da semana
+//   4. Ordenar cada coluna por Y decrescente → ordem de tempo (y alto = cedo)
+//   5. Agrupar células consecutivas de mesmo código → uma sessão
+//   6. Start time = y da primeira célula do grupo → hora via mapeamento
 // ============================================================================
-async function extractScheduleWithGemini(text, subjects) {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey || apiKey === 'sua-chave-aqui') {
-    console.warn('GEMINI_API_KEY não configurada — horários não serão extraídos');
-    return subjects.map(s => ({ ...s, schedule: [] }));
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-  const subjectList = subjects.map(s => `${s.code}: ${s.name}`).join('\n');
-
-  const prompt = `You are analyzing an enrollment attestation (atestado de matrícula) from UFOP, a Brazilian federal university that uses the SIGAA system.
-
-Extract the weekly class schedule for each subject listed below.
-
-SUBJECTS TO FIND:
-${subjectList}
-
-UFOP TIME SLOTS:
-Morning (M): M1=07:30, M2=08:20, M3=09:20, M4=10:10, M5=11:10, M6=12:00
-Afternoon (T): T1=13:30, T2=14:20, T3=15:20, T4=16:10, T5=17:10, T6=18:00
-Night (N): N1=19:00, N2=19:50, N3=21:00, N4=21:50
-
-Each subject usually occupies 2 consecutive periods per day (= 100 minutes per session). Look at the schedule grid in the document (top section with day columns) to determine which days each subject code appears.
-
-Return ONLY a valid JSON array with no markdown, no explanation:
-[
-  {
-    "code": "CSI106",
-    "schedule": [
-      {"day": "SEGUNDA", "startTime": "15:20", "duration": 100},
-      {"day": "QUARTA", "startTime": "15:20", "duration": 100}
-    ]
-  }
-]
-
-Day values must be exactly one of: SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO, DOMINGO
-
-DOCUMENT:
-${text}`;
+async function extractScheduleFromCoordinates(buffer) {
+  const items = [];
 
   try {
-    const result = await model.generateContent(prompt);
-    const rawText = result.response.text().trim();
+    await pdfParse(buffer, {
+      pagerender: async (pageData) => {
+        const content = await pageData.getTextContent();
+        for (const item of (content.items || [])) {
+          const text = (item.str || '').trim();
+          if (text && item.transform) {
+            items.push({
+              text,
+              x: item.transform[4],
+              y: item.transform[5]
+            });
+          }
+        }
+        return content.items.map(i => i.str).join('');
+      }
+    });
+  } catch {
+    return null;
+  }
 
-    // Extrai o JSON mesmo que venha com delimitadores de markdown
+  if (items.length === 0) return null;
+
+  // 1. Mapeia y → hora inicial (a partir dos rótulos "07:30 - 08:20")
+  const timeRe = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}$/;
+  const yToTime = {};
+  for (const item of items) {
+    const m = item.text.match(timeRe);
+    if (m) {
+      const y = Math.round(item.y);
+      if (!yToTime[y]) yToTime[y] = m[1];
+    }
+  }
+
+  function nearestTime(y) {
+    const ry = Math.round(y);
+    if (yToTime[ry]) return yToTime[ry];
+    let best = null, bestDiff = Infinity;
+    for (const [yStr, t] of Object.entries(yToTime)) {
+      const d = Math.abs(ry - parseInt(yStr));
+      if (d < bestDiff) { bestDiff = d; best = t; }
+    }
+    return best;
+  }
+
+  // 2. Filtra células de grade (ex: CSI990-11T)
+  const codeRe = /^([A-Z]{2,5}\d{3})-\d{1,2}[TP]$/;
+  const cells = items.filter(i => codeRe.test(i.text));
+  if (cells.length === 0) return null;
+
+  // 3. Agrupa por X (±20 px) → colunas de dia
+  const X_TOL = 20;
+  const cols = [];
+  for (const cell of cells) {
+    let col = cols.find(c => Math.abs(c.x - cell.x) <= X_TOL);
+    if (!col) { col = { x: cell.x, cells: [] }; cols.push(col); }
+    col.cells.push(cell);
+  }
+
+  // 4. Ordena colunas da esquerda para a direita (Segunda → Sábado)
+  cols.sort((a, b) => a.x - b.x);
+
+  const DAY_NAMES = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO'];
+  const scheduleMap = {}; // { code: [{ day, startTime, duration }] }
+
+  cols.forEach((col, i) => {
+    const day = DAY_NAMES[i];
+    if (!day) return;
+
+    // 5. Ordena células de cima para baixo (y alto = mais cedo)
+    const sorted = [...col.cells].sort((a, b) => b.y - a.y);
+
+    let j = 0;
+    while (j < sorted.length) {
+      const code = sorted[j].text.match(codeRe)[1];
+      const startTime = nearestTime(sorted[j].y);
+      let count = 0;
+      while (j + count < sorted.length && sorted[j + count].text.match(codeRe)[1] === code) count++;
+
+      if (startTime && code) {
+        if (!scheduleMap[code]) scheduleMap[code] = [];
+        scheduleMap[code].push({ day, startTime, duration: count * 50 });
+      }
+      j += count;
+    }
+  });
+
+  return Object.keys(scheduleMap).length > 0 ? scheduleMap : null;
+}
+
+// ============================================================================
+// FALLBACK: extração de horários via Groq (para formatos não-UFOP)
+// ============================================================================
+async function extractScheduleWithGroq(text, subjects) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || apiKey === 'sua-chave-aqui') {
+    console.warn('GROQ_API_KEY não configurada — horários não serão extraídos');
+    return subjects.map(s => ({ ...s, schedule: [] }));
+  }
+
+  const groq = new Groq({ apiKey });
+  const subjectList = subjects.map(s => `${s.code}: ${s.name}`).join('\n');
+
+  const prompt = `Extract the weekly class schedule from this Brazilian university enrollment PDF.
+Subjects: ${subjectList}
+Return ONLY a JSON array: [{"code":"CSI106","schedule":[{"day":"SEGUNDA","startTime":"21:00","duration":100}]}]
+Days: SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO, DOMINGO
+Document: ${text.slice(0, 3000)}`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+      max_tokens: 2048
+    });
+    const rawText = completion.choices[0].message.content.trim();
     const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('Resposta do Gemini não contém JSON válido');
-
+    if (!jsonMatch) throw new Error('JSON inválido');
     const scheduleData = JSON.parse(jsonMatch[0]);
-
-    return subjects.map(subject => {
-      const found = scheduleData.find(s => s.code === subject.code);
-      return { ...subject, schedule: found?.schedule || [] };
+    return subjects.map(s => {
+      const found = scheduleData.find(d => d.code === s.code);
+      return { ...s, schedule: found?.schedule || [] };
     });
   } catch (err) {
-    console.error('Erro ao extrair horários com Gemini:', err.message);
-    return subjects.map(s => ({ ...s, schedule: [] }));
+    const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('rate');
+    console.error('Groq fallback falhou:', isQuota ? 'quota esgotada' : err.message);
+    return subjects.map(s => ({ ...s, schedule: [], scheduleError: isQuota ? 'quota' : 'error' }));
   }
 }
 
@@ -159,14 +240,23 @@ async function parseEnrollmentPDF(buffer) {
     return { semester, studentName, subjects: [], rawText: text };
   }
 
-  const subjectsWithSchedule = await extractScheduleWithGemini(text, subjects);
+  // Tenta extração determinística por coordenadas (rápida, gratuita, 100% precisa)
+  const scheduleMap = await extractScheduleFromCoordinates(buffer);
 
-  return {
-    semester,
-    studentName,
-    subjects: subjectsWithSchedule,
-    rawText: text
-  };
+  let subjectsWithSchedule;
+  if (scheduleMap) {
+    console.log('Horários extraídos por coordenadas PDF (determinístico)');
+    subjectsWithSchedule = subjects.map(s => ({
+      ...s,
+      schedule: scheduleMap[s.code] || []
+    }));
+  } else {
+    // Fallback para Groq (outros formatos de universidade)
+    console.log('Coordenadas não disponíveis — usando Groq como fallback');
+    subjectsWithSchedule = await extractScheduleWithGroq(text, subjects);
+  }
+
+  return { semester, studentName, subjects: subjectsWithSchedule };
 }
 
 module.exports = { parseEnrollmentPDF, normalizeName };

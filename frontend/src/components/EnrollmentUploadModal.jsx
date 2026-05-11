@@ -229,6 +229,8 @@ export default function EnrollmentUploadModal({ courseId, token, onClose, onSucc
                           </span>
                         ))}
                       </div>
+                    ) : s.scheduleError === 'quota' ? (
+                      <span className="no-schedule quota-warn">⚠ Quota da IA esgotada</span>
                     ) : (
                       <span className="no-schedule">Sem horário detectado</span>
                     )}
