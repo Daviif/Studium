@@ -1,27 +1,11 @@
-/* Dashboard Layout */
 .dashboard-layout {
   min-height: 100vh;
   display: flex;
-  background: linear-gradient(140deg, #f0f4ff 0%, #f2f5fb 45%, #eef2f9 100%);
+  flex-direction: column;
+  background: var(--s-cream);
 }
 
 .dashboard-main {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-left: 220px;
-  transition: margin-left 0.3s ease;
   overflow-y: auto;
-}
-
-/* Quando sidebar está fechada */
-.sidebar-closed ~ .dashboard-main {
-  margin-left: 0;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .dashboard-main {
-    margin-left: 0;
-  }
 }

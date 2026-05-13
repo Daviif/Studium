@@ -241,4 +241,11 @@ export const enrollmentApi = {
   })
 };
 
+// ============================================================================
+// FRASE DO DIA
+// ============================================================================
+export const quotesApi = {
+  daily: () => api.get('/quotes/daily'),
+};
+
 export default api;

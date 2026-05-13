@@ -35,8 +35,7 @@ export default function Sidebar() {
 
   const getActiveClass = (path) => {
     const currentPath = window.location.pathname;
-    if (path === '/' && currentPath === '/') return 'menu-item-active';
-    if (path !== '/' && currentPath.startsWith(path)) return 'menu-item-active';
+    if (currentPath.startsWith(path)) return 'menu-item-active';
     return '';
   };
 
@@ -57,7 +56,7 @@ export default function Sidebar() {
             <div className="brand-mark">
               <LibraryBig size={16} />
             </div>
-            <span className="brand-name">StudyHub</span>
+            <span className="brand-name"></span>
           </div>
           <button 
             className="toggle-button"
@@ -71,8 +70,8 @@ export default function Sidebar() {
         {/* Menu */}
         <nav className="menu">
           <button 
-            className={`menu-item ${getActiveClass('/')}`}
-            onClick={() => navigate('/')}
+            className={`menu-item ${getActiveClass('/dashboard')}`}
+            onClick={() => navigate('/dashboard')}
             type="button"
             title="Visão Geral"
           >

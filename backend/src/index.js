@@ -11,7 +11,9 @@ const app = express();
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',      // Dev local (Vite)
   'http://localhost:3000',      // Dev alternativo
-  'http://127.0.0.1:5173',      // Dev local (IP)
+  'http://127.0.0.1:3000',      // Dev local (IP)
+  'http://192.168.2.11:5173',   // Dev local (IP) 
+   'http://192.168.2.11:3001',   // Dev local (IP)
    // Outros deploys Vercel
   'https://studyhub-production-06a4.up.railway.app'      
 ];
@@ -90,7 +92,8 @@ const authenticateToken = (req, res, next) => {
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ROTAS PÚBLICAS
-app.use('/api/auth', authRouter);
+app.use('/api/auth',   authRouter);
+app.use('/api/quotes', require('./routes/quotes'));
 
 // ROTAS PROTEGIDAS
 app.use('/api/courses', authenticateToken, coursesRouter);

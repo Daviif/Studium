@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { routinesApi, coursesApi, subjectsApi } from '../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { routinesApi, coursesApi, subjectsApi } from '../../services/api';
 import './Routines.css';
 
 const DAYS_OF_WEEK = [
@@ -209,7 +209,7 @@ export default function RoutinesPage() {
   return (
     <div className="routines-container">
       <div className="routines-header">
-        <button className="back-button" onClick={() => navigate('/')} title="Voltar">
+        <button className="back-button" onClick={() => navigate('/dashboard')} title="Voltar">
           <ArrowLeft size={20} />
         </button>
 
