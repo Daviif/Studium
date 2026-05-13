@@ -311,7 +311,7 @@ router.post('/test-email', async (req, res) => {
           <p style="margin-top: 0; font-size: 16px; color: #555;">Olá,</p>
 
           <p style="font-size: 14px; color: #666; line-height: 1.6;">
-            Este é um <strong>email de teste</strong> do sistema StudyHub. Se você recebeu este email, significa que a configuração de notificações por email está funcionando corretamente! 🎉
+            Este é um <strong>email de teste</strong> do sistema . Se você recebeu este email, significa que a configuração de notificações por email está funcionando corretamente! 🎉
           </p>
 
           <div style="background: #f5f7ff; padding: 15px; border-left: 4px solid #667eea; border-radius: 4px; margin: 20px 0;">
@@ -324,7 +324,7 @@ router.post('/test-email', async (req, res) => {
           </div>
 
           <p style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
-            © StudyHub - Sistema de Gerenciamento Acadêmico
+            ©  - Sistema de Gerenciamento Acadêmico
           </p>
         </div>
       </div>
@@ -332,7 +332,7 @@ router.post('/test-email', async (req, res) => {
 
     const result = await sendEmail(
       recipientEmail,
-      '✅ Teste de Email - StudyHub',
+      '✅ Teste de Email - ',
       testTemplate
     );
 

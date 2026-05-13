@@ -57,7 +57,7 @@
 
 .modal-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: #1f2a43;
 }
@@ -90,7 +90,7 @@
 
 .modal-subtitle {
   margin: 0 0 20px;
-  font-size: 16px;
+  font-size: 18px;
   color: #60779a;
   font-weight: 500;
 }
@@ -177,14 +177,14 @@
 
 .course-info h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: #1f2a43;
 }
 
 .course-info p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #95a5a6;
 }
 

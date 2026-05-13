@@ -27,7 +27,7 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">StudyHub</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2"></h1>
         <p className="text-gray-600 mb-8">Organize seus estudos com eficiência</p>
 
         {error && (

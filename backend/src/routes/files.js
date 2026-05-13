@@ -77,7 +77,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder: process.env.CLOUDINARY_FOLDER || 'studyhub_files',
+          folder: process.env.CLOUDINARY_FOLDER || '_files',
           resource_type: 'auto',
           use_filename: true,
           unique_filename: true

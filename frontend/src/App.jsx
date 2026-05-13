@@ -1,237 +1,311 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, AlertCircle, BookOpen, ChevronRight } from 'lucide-react';
-import { coursesApi, subjectsApi, tasksApi } from './services/api';
+import { Calendar, CheckSquare, BarChart3, Flame, Plus, ChevronRight } from 'lucide-react';
+import { coursesApi, subjectsApi, tasksApi, routinesApi, quotesApi } from './services/api';
 import { useAuth } from './contexts/AuthContext';
-import QuickShortcuts from './components/QuickShortcuts';
 import './App.css';
 
-function App() {
+const DOW    = ['DOMINGO','SEGUNDA','TERCA','QUARTA','QUINTA','SEXTA','SABADO'];
+const DOW_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const QUOTE_FALLBACK = {
+  text: '"A educação é a arma mais poderosa que você pode usar para mudar o mundo."',
+  author: 'Nelson Mandela',
+  attribution: 'LÍDER E ATIVISTA SUL-AFRICANO',
+};
+
+const QUOTE_CACHE_KEY = 'studium_quote_cache';
+const QUOTE_TTL_MS    = 12 * 60 * 60 * 1000; // 12 horas
+
+function getCachedQuote() {
+  try {
+    const raw = localStorage.getItem(QUOTE_CACHE_KEY);
+    if (!raw) return null;
+    const { quote, savedAt } = JSON.parse(raw);
+    if (Date.now() - savedAt < QUOTE_TTL_MS) return quote;
+  } catch {}
+  return null;
+}
+
+function setCachedQuote(quote) {
+  try {
+    localStorage.setItem(QUOTE_CACHE_KEY, JSON.stringify({ quote, savedAt: Date.now() }));
+  } catch {}
+}
+
+const SUB_COLORS = [
+  { bg:'#fef9e8', bar:'#d4940a', text:'#7a5000' },
+  { bg:'#e8f4ff', bar:'#1a7fc4', text:'#0f5a8c' },
+  { bg:'#eaf5ea', bar:'#2a7a2a', text:'#1a5c1a' },
+  { bg:'#ffeef2', bar:'#c43060', text:'#8c1a40' },
+];
+
+const TYPE_STYLE = {
+  TRABALHO:  { label:'TRABALHO',  bg:'#fef3c7', color:'#92400e' },
+  ATIVIDADE: { label:'ATIVIDADE', bg:'#d1fae5', color:'#065f46' },
+  PROVA:     { label:'PROVA',     bg:'#fee2e2', color:'#991b1b' },
+};
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+function fmtHeader(d) {
+  return `${DOW_PT[d.getDay()].toUpperCase()}, ${d.getDate()} DE ${MONTHS[d.getMonth()].toUpperCase()}`;
+}
+function daysUntil(iso) {
+  const t=new Date(); t.setHours(0,0,0,0);
+  const d=new Date(iso); d.setHours(0,0,0,0);
+  return Math.ceil((d-t)/86400000);
+}
+
+function Deadline({ iso }) {
+  if (!iso) return null;
+  const d = daysUntil(iso);
+  if (d < 0)   return <span className="db db-o">Atrasada</span>;
+  if (d === 0) return <span className="db db-t">Hoje</span>;
+  if (d === 1) return <span className="db db-tm">Amanhã</span>;
+  if (d <= 7)  return <span className="db db-s">em {d} dias</span>;
+  const dt=new Date(iso);
+  return <span className="db db-n">{dt.getDate()} de {MONTHS[dt.getMonth()].slice(0,3).toLowerCase()}.</span>;
+}
+
+export default function App() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const [tasks,    setTasks]    = useState([]);
+  const [routines, setRoutines] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [upcomingTasks, setUpcomingTasks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [quote,    setQuote]    = useState(getCachedQuote() || QUOTE_FALLBACK);
 
+  useEffect(() => { if (token) load(); }, [token]);
 
+  // Frase do dia — carrega em segundo plano, sem travar o dashboard
   useEffect(() => {
-    loadDashboardData();
-  }, [token]);
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-
-      // Carregar cursos para obter matérias
-      const coursesResponse = await coursesApi.list(token);
-      const coursesData = Array.isArray(coursesResponse.data) ? coursesResponse.data : [];
-
-      const allSubjects = [];
-      const allTasks = [];
-
-      // Carregar matérias e tarefas
-      for (const course of coursesData) {
-        try {
-          const subjectsResponse = await subjectsApi.list(course.id, token);
-          const courseSubjects = Array.isArray(subjectsResponse.data) ? subjectsResponse.data : [];
-          
-          for (const subject of courseSubjects) {
-            allSubjects.push({ ...subject, courseName: course.name });
-
-            // Carregar tarefas de cada professor da matéria
-            if (subject.professorSubjects && Array.isArray(subject.professorSubjects)) {
-              for (const professorSubject of subject.professorSubjects) {
-                try {
-                  const tasksResponse = await tasksApi.listByProfessor(professorSubject.id, token);
-                  if (Array.isArray(tasksResponse.data)) {
-                    const tasksWithMetadata = tasksResponse.data.map(task => ({
-                      ...task,
-                      subjectName: subject.name,
-                      professorName: professorSubject.professor?.name,
-                      professorSubjectId: professorSubject.id,
-                      courseId: course.id,
-                      subjectId: subject.id
-                    }));
-                    allTasks.push(...tasksWithMetadata);
-                  }
-                } catch (err) {
-                  console.error(`Erro ao carregar tarefas:`, err);
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Erro ao carregar matérias do curso:`, err);
+    const cached = getCachedQuote();
+    if (cached) { setQuote(cached); return; }
+    quotesApi.daily()
+      .then(res => {
+        if (res.data?.text) {
+          setCachedQuote(res.data);
+          setQuote(res.data);
         }
-      }
+      })
+      .catch(() => {}); // mantém fallback silenciosamente
+  }, []);
 
-      // Ordenar matérias por atualização recente (últimas 5)
-      const recentSubjects = allSubjects
-        .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-        .slice(0, 5);
+  async function load() {
+    try {
+      const [tR, rR, cR] = await Promise.all([
+        tasksApi.getAllTasks(token),
+        routinesApi.getAllRoutines(token),
+        coursesApi.list(token),
+      ]);
+      const ts = Array.isArray(tR.data) ? tR.data : [];
+      const rs = Array.isArray(rR.data) ? rR.data : [];
+      const cs = Array.isArray(cR.data) ? cR.data : [];
+      setTasks(ts); setRoutines(rs);
+      const top = cs.slice(0,3);
+      const srs = await Promise.all(top.map(c => subjectsApi.list(c.id,token).catch(()=>({data:[]}))));
+      setSubjects(srs.flatMap((r,i)=>(r.data||[]).map(s=>({...s,courseName:top[i].name}))).slice(0,4));
+    } catch(e){ console.error(e); } finally { setLoading(false); }
+  }
 
-      // Filtrar tarefas não concluídas com data próxima
-      const today = new Date();
-      const next30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const todayDOW = DOW[now.getDay()];
+  // `quote` vem do estado (API + cache localStorage de 12h)
+  const firstName = user?.name?.split(' ')[0] ?? 'Estudante';
+  const initials  = user?.name ? user.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : 'US';
 
-      const upcomingTasksList = allTasks
-        .filter(task => {
-          if (!task.dueDate || task.completed) return false;
-          const dueDate = new Date(task.dueDate);
-          return dueDate >= today && dueDate <= next30Days;
-        })
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-        .slice(0, 8); // Top 8 atividades próximas
+  const mon=new Date(now); mon.setDate(now.getDate()-((now.getDay()+6)%7)); mon.setHours(0,0,0,0);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
 
-      setSubjects(recentSubjects);
-      setUpcomingTasks(upcomingTasksList);
-    } catch (error) {
-      setErrorMessage('Não foi possível carregar os dados.');
-      console.error('Erro ao carregar dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const weekTs   = tasks.filter(t=>t.dueDate&&new Date(t.dueDate)>=mon&&new Date(t.dueDate)<=sun);
+  const doneTs   = tasks.filter(t=>t.completed);
+  const todayTs  = tasks.filter(t=>!t.completed&&t.dueDate&&new Date(t.dueDate).toDateString()===now.toDateString());
+  const weekPct  = weekTs.length>0 ? Math.round((weekTs.filter(t=>t.completed).length/weekTs.length)*100) : 0;
 
-  const getTaskIcon = (taskType) => {
-    switch (taskType) {
-      case 'PROVA':
-        return '⚡';
-      case 'TRABALHO':
-        return '📝';
-      case 'ATIVIDADE':
-      default:
-        return '✓';
-    }
-  };
+  const doneDates=new Set(doneTs.filter(t=>t.updatedAt).map(t=>new Date(t.updatedAt).toDateString()));
+  let streak=0; const ck=new Date(now);
+  while(doneDates.has(ck.toDateString())&&streak<365){streak++;ck.setDate(ck.getDate()-1);}
 
-  const getDaysUntil = (dueDate) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    const diff = due.getTime() - today.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return days;
-  };
+  const tW=tasks.reduce((s,t)=>s+(t.weight||1),0);
+  const dW=doneTs.reduce((s,t)=>s+(t.weight||1),0);
+  const score=tW>0?((dW/tW)*10).toFixed(1):null;
+
+  const in14=new Date(now.getTime()+14*86400000);
+  const upcoming=tasks.filter(t=>!t.completed&&t.dueDate&&new Date(t.dueDate)<=in14)
+    .sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate)).slice(0,8);
+
+  const todayClasses=routines.filter(r=>r.dayOfWeek===todayDOW)
+    .sort((a,b)=>a.startTime.localeCompare(b.startTime));
+
+  const subProg={};
+  tasks.forEach(t=>{
+    const id=t.professorSubject?.subject?.id; if(!id) return;
+    if(!subProg[id]) subProg[id]={total:0,done:0};
+    subProg[id].total++; if(t.completed) subProg[id].done++;
+  });
+
+  if(loading) return <div className="dash-loading">Carregando…</div>;
 
   return (
-    <div className="app-content">
-      <div className="app-header">
-        <div>
-          <h1>Visão Geral</h1>
-          <p>Bem-vindo, {user?.name?.split(' ')[0]}</p>
+    <div className="dash">
+      <div className="dash-inner">
+
+        {/* Saudação */}
+        <div className="dash-greeting">
+          <div className="dash-gl">
+            <p className="dash-date">{fmtHeader(now)}</p>
+            <div className="dash-hello-row">
+              <div className="dash-avatar">{initials}</div>
+              <h1 className="dash-hello">{greeting()}, <em>{firstName}</em>.</h1>
+            </div>
+            <p className="dash-summary">
+              {todayTs.length>0
+                ? `${todayTs.length} entrega${todayTs.length>1?'s':''} hoje · ${weekPct}% da semana concluído.`
+                : weekPct>0 ? `${weekPct}% da semana concluído. Continue assim!`
+                : 'Sem entregas para hoje. Bom dia de estudos!'}
+            </p>
+          </div>
+          <button className="dash-cta" onClick={()=>navigate('/courses')}>
+            <Plus size={15}/> Nova tarefa
+          </button>
         </div>
-      </div>
 
-      <QuickShortcuts />
-
-      {errorMessage && (
-        <div className="error-message">
-          {errorMessage}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="loading">Carregando dados...</div>
-      ) : (
-        <>
-          {/* Atividades Próximas */}
-          {upcomingTasks.length > 0 && (
-            <section className="dashboard-section">
-              <div className="section-header">
-                <div className="section-title">
-                  <AlertCircle size={20} />
-                  <h2>Atividades Próximas de Expirar</h2>
-                </div>
-                <button 
-                  className="view-all-btn"
-                  onClick={() => navigate('/schedule')}
-                  title="Ver cronograma completo"
-                >
-                  Ver Cronograma <ChevronRight size={16} />
-                </button>
+        {/* Stats */}
+        <div className="dash-stats">
+          {[
+            {icon:<Calendar size={18}/>,    cls:'dsc-teal',  label:'ESTA SEMANA', val:weekTs.filter(t=>!t.completed).length, unit:'entregas'     },
+            {icon:<CheckSquare size={18}/>, cls:'dsc-amber', label:'CONCLUÍDAS',  val:doneTs.length,  unit:`de ${tasks.length}`},
+            {icon:<BarChart3 size={18}/>,   cls:'dsc-sage',  label:'PROGRESSO',   val:score??'–',     unit:'/10'              },
+            {icon:<Flame size={18}/>,       cls:'dsc-peach', label:'SEQUÊNCIA',   val:streak,         unit:'dias de estudo'   },
+          ].map(s=>(
+            <div key={s.label} className="dsc">
+              <div className={`dsc-icon ${s.cls}`}>{s.icon}</div>
+              <div className="dsc-body">
+                <p className="dsc-label">{s.label}</p>
+                <p className="dsc-val">{s.val} <span>{s.unit}</span></p>
               </div>
+            </div>
+          ))}
+        </div>
 
-              <div className="upcoming-tasks">
-                {upcomingTasks.map((task) => {
-                  const daysUntil = getDaysUntil(task.dueDate);
-                  const isUrgent = daysUntil <= 3;
-                  const isSoon = daysUntil <= 7;
+        {/* Main */}
+        <div className="dash-main">
 
+          {/* Próximas entregas */}
+          <section className="dash-card">
+            <div className="dash-card-hdr">
+              <div>
+                <h2 className="dash-card-title">Próximas entregas</h2>
+                <p className="dash-card-sub">Próximos 14 dias</p>
+              </div>
+              <button className="dash-text-btn" onClick={()=>navigate('/schedule')}>
+                Ver cronograma <ChevronRight size={13}/>
+              </button>
+            </div>
+            {upcoming.length===0 ? (
+              <div className="dash-empty">
+                <p>Nenhuma entrega nos próximos 14 dias.</p>
+                <button onClick={()=>navigate('/courses')}>Adicionar tarefas →</button>
+              </div>
+            ) : (
+              <div className="dash-task-list">
+                {upcoming.map(t=>{
+                  const ts=TYPE_STYLE[t.type]||TYPE_STYLE.ATIVIDADE;
                   return (
-                    <div 
-                      key={task.id}
-                      className={`task-card ${isUrgent ? 'urgent' : isSoon ? 'soon' : ''}`}
-                      onClick={() => navigate(`/courses/${task.courseId}/subjects/${task.subjectId}`)}
-                    >
-                      <div className="task-icon">{getTaskIcon(task.type)}</div>
-                      <div className="task-info">
-                        <h3>{task.title}</h3>
-                        <p className="task-course">{task.subjectName}</p>
-                        {task.professorName && <p className="task-professor">Prof. {task.professorName}</p>}
+                    <div key={t.id} className="dti">
+                      <span className="dti-circle"/>
+                      <div className="dti-body">
+                        <div className="dti-row">
+                          <span className="dti-name">{t.title}</span>
+                          <span className="dti-type" style={{background:ts.bg,color:ts.color}}>{ts.label}</span>
+                        </div>
+                        <p className="dti-meta">
+                          <span className="dti-dot"/>
+                          {t.subjectName||'Matéria'}
+                          {t.professorName&&<> · Prof. {t.professorName}</>}
+                        </p>
                       </div>
-                      <div className="task-deadline">
-                        <Clock size={16} />
-                        <span className={`days ${isUrgent ? 'urgent-text' : ''}`}>
-                          {daysUntil === 0 ? 'Hoje' : daysUntil === 1 ? 'Amanhã' : `${daysUntil}d`}
-                        </span>
-                      </div>
+                      <Deadline iso={t.dueDate}/>
                     </div>
                   );
                 })}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
-          {/* Matérias Recentes */}
-          {subjects.length > 0 && (
-            <section className="dashboard-section">
-              <div className="section-header">
-                <div className="section-title">
-                  <BookOpen size={20} />
-                  <h2>Matérias Recentes</h2>
-                </div>
-                <button 
-                  className="view-all-btn"
-                  onClick={() => navigate('/courses')}
-                  title="Ver todas as matérias"
-                >
-                  Ver Todas <ChevronRight size={16} />
-                </button>
+          {/* Direita */}
+          <div className="dash-right">
+
+            {/* Aulas hoje */}
+            <section className="dash-card dash-today-card">
+              <div className="dash-today-hdr">
+                <Calendar size={15}/><h2 className="dash-card-title">Aulas de hoje</h2>
               </div>
-
-              <div className="subjects-grid">
-                {subjects.map((subject) => (
-                  <div 
-                    key={subject.id}
-                    className="subject-card"
-                    onClick={() => navigate(`/courses/${subject.courseId}/subjects/${subject.id}`)}
-                  >
-                    <div className="subject-header">
-                      <h3>{subject.name}</h3>
-                      {subject.type && <span className="subject-type">{subject.type}</span>}
-                    </div>
-                    <p className="subject-course">{subject.courseName}</p>
-                    {subject.description && <p className="subject-description">{subject.description}</p>}
+              {todayClasses.length===0
+                ? <p className="dash-empty-txt">Sem aulas programadas para hoje.</p>
+                : <div className="dash-class-list">
+                    {todayClasses.map(r=>(
+                      <div key={r.id} className="dcl">
+                        <span className="dcl-time">{r.startTime}</span>
+                        <span className="dcl-bar"/>
+                        <div className="dcl-info">
+                          <span className="dcl-name">{r.subjectName||r.activity}</span>
+                          <span className="dcl-dur">{r.duration}min</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+              }
             </section>
-          )}
 
-          {upcomingTasks.length === 0 && subjects.length === 0 && !loading && (
-            <div className="empty-state">
-              <h2>Nenhuma atividade pendente</h2>
-              <p>Você está em dia com todas as suas tarefas! 🎉</p>
+            {/* Matérias */}
+            {subjects.length>0 && (
+              <section className="dash-card">
+                <div className="dash-card-hdr">
+                  <h2 className="dash-card-title">Matérias</h2>
+                  <button className="dash-text-btn" onClick={()=>navigate('/courses')}>
+                    Todas <ChevronRight size={13}/>
+                  </button>
+                </div>
+                <div className="dash-subj-grid">
+                  {subjects.map((s,i)=>{
+                    const col=SUB_COLORS[i%SUB_COLORS.length];
+                    const p=subProg[s.id];
+                    const pct=p&&p.total>0?Math.round((p.done/p.total)*100):0;
+                    return (
+                      <div key={s.id} className="dsj" style={{background:col.bg}}
+                        onClick={()=>navigate(`/courses/${s.courseId||s.id}`)}>
+                        <p className="dsj-course">{s.courseName}</p>
+                        <p className="dsj-name" style={{color:col.text}}>{s.name}</p>
+                        <div className="dsj-track">
+                          <div className="dsj-fill" style={{width:`${pct}%`,background:col.bar}}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Quote */}
+            <div className="dash-quote">
+              <p className="dash-quote-text">{quote.text}</p>
+              <p className="dash-quote-attr">
+                {quote.author && <strong>{quote.author}</strong>}
+                {quote.attribution && <span> · {quote.attribution}</span>}
+                {/* compat com estrutura legada */}
+                {quote.attr && !quote.author && quote.attr}
+              </p>
             </div>
-          )}
-        </>
-      )}
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default App;

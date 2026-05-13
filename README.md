@@ -1,12 +1,12 @@
-# 📚 StudyHub - Plataforma de Gestão Acadêmica
+# 📚 Studium - Plataforma de Gestão Acadêmica
 
 <div align="center">
 
-![StudyHub](https://img.shields.io/badge/StudyHub-v1.0-blue)
+![Studium](https://img.shields.io/badge/Studium-v1.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow)
 
-**StudyHub é uma plataforma livre e gratuita que ajuda universitários a organizar suas atividades acadêmicas, gerenciar professores, tarefas e arquivos de forma intuitiva e eficiente.**
+**Studium é uma plataforma livre e gratuita que ajuda universitários a organizar suas atividades acadêmicas, gerenciar professores, tarefas e arquivos de forma intuitiva e eficiente.**
 
 [Características](#-características) • [Instalação](#-instalação) • [Como Usar](#-como-usar) • [Roadmap](#-roadmap) • [Contribuir](#-contribuir)
 
@@ -16,7 +16,7 @@
 
 ## 🎯 Sobre
 
-StudyHub é uma aplicação web desenvolvida para **universitários de todos os tipos** - seja você estudante de graduação, pós-graduação ou cursos técnicos. Nossa missão é simplificar a gestão acadêmica através de uma interface intuitiva e funcionalidades práticas.
+ é uma aplicação web desenvolvida para **universitários de todos os tipos** - seja você estudante de graduação, pós-graduação ou cursos técnicos. Nossa missão é simplificar a gestão acadêmica através de uma interface intuitiva e funcionalidades práticas.
 
 A plataforma permite que você:
 - Organize seus cursos e matérias
@@ -27,7 +27,7 @@ A plataforma permite que você:
 
 ### 🚀 Visão Futura
 
-Em breve, StudyHub contará com um **módulo de compartilhamento comunitário**, permitindo que alunos compartilhem:
+Em breve,  contará com um **módulo de compartilhamento comunitário**, permitindo que alunos compartilhem:
 - Provas e exercícios anteriores
 - Resumos e materiais de estudo
 - Atividades e desafios por disciplina
@@ -39,44 +39,56 @@ Assim, gerações futuras de alunos poderão aprender com o conhecimento coletiv
 
 ## ✨ Características
 
-### 📖 Gestão de Cursos
-- Crie e organize múltiplos cursos
-- Associe universidades e instituições
-- Acompanhe todas as matérias do seu curso
+### 📖 Gestão de Cursos e Matérias
+- Crie e organize múltiplos cursos com universidade
+- Matérias organizadas por período e tipo (obrigatória, eletiva, etc.)
+- **Status acadêmico** por matéria: Ativa, Aprovada, Reprovada, Pendente, Trancada, Dispensada
+- **Histórico de status** com semestre e observações
+- **Configuração Rápida** — classifica todas as matérias pelo período atual automaticamente
+
+### 🤖 Importação Inteligente via PDF
+- Upload do atestado de matrícula (UFOP/SIGAA e outros formatos)
+- Extração de matérias **determinística via coordenadas X,Y do PDF** — sem IA, sem erros
+- Extração de horários **100% precisa** lendo a posição real de cada célula na tabela
+- Fallback com **Groq LLM** para formatos de outras universidades
+- Criação automática de matérias não cadastradas
+- Geração automática de rotinas a partir dos horários detectados
 
 ### 👨‍🏫 Múltiplos Professores por Matéria
-- Registre quantos professores quiser para cada disciplina
-- Diferencie as metodologias de cada professor
-- Organize atividades por professor
-- Histórico de semestres lecionados
+- Registre quantos professores quiser por disciplina
+- Organize atividades separadas por professor e semestre
+- Histórico de quem lecionou cada matéria
 
-### 📋 Gestão de Tarefas
-- Crie tarefas com prazos de entrega
+### 📋 Gestão de Tarefas e Avaliações
+- Atividades, trabalhos e provas com prazo, peso e prioridade
 - Marque tarefas como concluídas
-- Gerencie tarefas por professor
-- Visualize prazos em um cronograma
+- Registro de notas e avaliações com pesos percentuais
+- Alertas visuais por urgência (hoje, amanhã, próximos 3 dias)
 
 ### 📚 Organização de Arquivos
-- Upload de materiais de aula (PDF, DOCX, imagens, etc.)
-- Nomeação customizável de arquivos
+- Upload de materiais de aula (PDF, DOCX, imagens)
+- Armazenamento no Cloudinary com nomeação customizável
 - Organização por professor e disciplina
-- Download e gerenciamento fácil
 
 ### ⏰ Rotinas de Estudo
-- Crie rotinas recorrentes
-- Organize horários de estudo
+- Crie rotinas recorrentes por dia da semana
+- Geração em lote a partir de horários de aula
 - Visualize no cronograma semanal
 
 ### 📅 Cronograma
-- Visualização por semana ou mês
-- Veja todas as suas tarefas e rotinas
-- Destaque para tarefas concluídas
-- Indicadores visuais claros
+- Visualização semanal e mensal
+- Tarefas e rotinas integradas em uma única view
+- Indicadores visuais de urgência e conclusão
+
+### 🔔 Notificações
+- Notificações in-app, push e por e-mail
+- Alertas configuráveis por dias/horas antes do prazo
+- Horário de silêncio respeitado automaticamente
 
 ### 🔐 Autenticação Segura
-- Login e registro seguros
-- Autenticação por JWT
-- Seus dados são privativos
+- Login e registro com JWT
+- Proteção IDOR em todos os endpoints
+- Dados completamente privativos por usuário
 
 ---
 
@@ -98,9 +110,16 @@ Assim, gerações futuras de alunos poderão aprender com o conhecimento coletiv
 - **JWT** - Autenticação segura
 - **Bcryptjs** - Hash de senhas
 
-### DevOps
+### IA & Parsing
+- **pdf-parse** - Extração de texto e coordenadas de PDFs
+- **Groq SDK** - LLM open-source (Llama 3.3) para parsing de formatos variados
+- **Algoritmo de coordenadas X,Y** - Parser determinístico para SIGAA/UFOP
+
+### DevOps & Infra
 - **npm** - Gerenciador de pacotes
 - **Git** - Controle de versão
+- **Cloudinary** - Armazenamento de arquivos
+- **node-schedule** - Agendamento de notificações
 
 ---
 
@@ -205,44 +224,67 @@ O frontend abrirá em `http://localhost:5173`
 
 ## 📅 Roadmap
 
-### ✅ v1.0 (Atual)
-- [x] Autenticação e registro de usuários
-- [x] Gestão de cursos e matérias
-- [x] Múltiplos professores por matéria
-- [x] Sistema de tarefas com prazos
-- [x] Upload e organização de arquivos
+### ✅ v1.0 — Base
+- [x] Autenticação e registro de usuários (JWT)
+- [x] Gestão de cursos e matérias (períodos, tipos)
+- [x] Múltiplos professores por matéria e semestre
+- [x] Sistema de tarefas com prazos e prioridades
+- [x] Avaliações e notas com pesos percentuais
+- [x] Upload e organização de arquivos (Cloudinary)
 - [x] Cronograma semanal e mensal
-- [x] Rotinas de estudo
+- [x] Rotinas de estudo recorrentes
 
-### 🔄 v1.1 (Próximas Semanas)
-- [ ] Edição de professores
-- [ ] Filtros avançados no cronograma
-- [ ] Notificações de prazos próximos
-- [ ] Exportação de cronograma (iCal, PDF)
+### ✅ v1.1 — Notificações & Cursos Padrão
+- [x] Notificações in-app, push e por e-mail
+- [x] Preferências de notificação configuráveis por usuário
+- [x] Horário de silêncio (quiet hours)
+- [x] Cursos padrão pré-configurados (UFOP — Sistemas de Informação)
+- [x] Agendamento automático via node-schedule
+
+### ✅ v1.2 — Inteligência Acadêmica *(atual)*
+- [x] **Status de matéria** — Ativa, Aprovada, Reprovada, Pendente, Trancada, Dispensada
+- [x] **Histórico de status** — rastreamento completo com semestre e observações
+- [x] **Configuração Rápida** — classifica todas as matérias automaticamente pelo período informado
+- [x] **Importação de atestado de matrícula** (PDF da UFOP/SIGAA)
+  - [x] Extração de matérias por regex (determinístico)
+  - [x] Extração de horários via **coordenadas X,Y do PDF** — preciso e sem custo de IA
+  - [x] Fallback com **Groq / Llama 3.3** para outros formatos universitários
+  - [x] Criação automática de matérias ainda não cadastradas
+  - [x] Geração automática de rotinas a partir dos horários extraídos
+- [x] **Landing page** — apresentação pública do sistema
+- [x] Correções de segurança (IDOR em todos os endpoints sensíveis)
+- [x] Geração de rotinas em lote por horário de aula
+
+### 🔄 v1.3 — Grade Curricular & Pré-Requisitos *(em desenvolvimento)*
+- [ ] Upload da grade curricular em PDF
+- [ ] Extração de pré-requisitos entre matérias
+- [ ] Bloqueio de matérias por pré-requisito reprovado
+- [ ] Quebra de pré-requisito com aprovação da coordenação
+- [ ] Armazenamento de horário de aula vinculado à matéria
+- [ ] Criação automática de rotinas ao associar professor (quando horário já importado)
+- [ ] Suporte a PDFs de outras universidades que usam SIGAA
+
+### 🌍 v2.0 — Módulo Comunitário *(futuro)*
+- [ ] Compartilhamento de provas e materiais entre alunos
+- [ ] Avaliação comunitária de professores por disciplina
+- [ ] Sistema de comentários e fórum por matéria
+- [ ] Favoritos e bookmarks de materiais
+- [ ] Filtros por professor, instituição e período letivo
+
+### 🎯 Visões de Longo Prazo
 - [ ] Tema escuro
-
-### 🌍 v2.0 (Futuro - Compartilhamento Comunitário)
-- [ ] **Módulo de Compartilhamento**
-  - [ ] Usuários podem compartilhar provas
-  - [ ] Compartilhamento de resumos e materiais
-  - [ ] Avaliação comunitária (5 estrelas)
-  - [ ] Filtrar compartilhamentos por professor
-  - [ ] Sistema de comentários
-  - [ ] Favoritos e bookmarks
-
-### 🎯 Visões Futuras
-- [ ] Integração com Google Calendar
+- [ ] Integração com Google Calendar e iCal
+- [ ] Análise de desempenho acadêmico com gráficos
 - [ ] Aplicativo mobile (React Native)
-- [ ] Análise de desempenho acadêmico
-- [ ] Sistema de notas e boletins
 - [ ] Grupos de estudo colaborativos
-- [ ] Integração com plataformas de aprendizado (Moodle, Classroom)
+- [ ] Integração com Moodle e Google Classroom
+- [ ] Suporte multi-idioma
 
 ---
 
 ## 🤝 Contribuir
 
-Contribuições são bem-vindas! StudyHub é um projeto de código aberto e cresce com a ajuda da comunidade.
+Contribuições são bem-vindas!  é um projeto de código aberto e cresce com a ajuda da comunidade.
 
 ### Como Contribuir
 
@@ -273,7 +315,7 @@ Se encontrar um bug:
 
 Este projeto está licenciado sob a **Licença MIT** - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-StudyHub é software livre. Você é livre para usar, copiar, modificar e distribuir, desde que inclua a licença MIT.
+ é software livre. Você é livre para usar, copiar, modificar e distribuir, desde que inclua a licença MIT.
 
 ---
 
@@ -281,13 +323,13 @@ StudyHub é software livre. Você é livre para usar, copiar, modificar e distri
 
 - **Issues**: [GitHub Issues](https://github.com/daviif/StudyHub/issues)
 - **Discussões**: [GitHub Discussions](https://github.com/daviif/StudyHub/discussions)
-- **Email**: [seu-email@example.com]
+- **Email**: [studyhub@example.com]
 
 ---
 
 ## 🙌 Agradecimentos
 
-Obrigado a todos que contribuem para fazer StudyHub melhor! Este projeto existe graças a:
+Obrigado a todos que contribuem para fazer  melhor! Este projeto existe graças a:
 - Comunidade de desenvolvedores
 - Feedbacks de usuários universitários
 - Inspiração em ferramentas acadêmicas existentes

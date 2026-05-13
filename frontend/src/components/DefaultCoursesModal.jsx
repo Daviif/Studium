@@ -90,7 +90,7 @@ export default function DefaultCoursesModal({ onClose }) {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Bem-vindo ao StudyHub!</h2>
+          <h2>Bem-vindo ao !</h2>
           <button 
             className="modal-close"
             onClick={handleSkip}

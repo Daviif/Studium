@@ -202,13 +202,13 @@ function getTaskDueSoonEmailTemplate(taskTitle, daysRemaining, dueDate) {
         </div>
 
         <p style="font-size: 14px; color: #666;">
-          Acesse a plataforma StudyHub para mais detalhes e começar a trabalhar.
+          Acesse a plataforma  para mais detalhes e começar a trabalhar.
         </p>
 
         <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" 
              style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            Acessar StudyHub
+            Acessar 
           </a>
         </div>
 
