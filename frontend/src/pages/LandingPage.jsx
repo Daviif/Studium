@@ -12,37 +12,37 @@ const FEATURES = [
     icon: <GraduationCap size={28} />,
     title: 'Cursos e Matérias',
     desc: 'Organize toda a sua grade curricular, períodos e professores em um só lugar.',
-    color: '#667eea',
+    color: '#1d4ed8',
   },
   {
     icon: <CheckSquare size={28} />,
     title: 'Tarefas e Prazos',
     desc: 'Nunca perca uma entrega. Gerencie atividades, trabalhos e provas com alertas.',
-    color: '#27ae60',
+    color: '#10b981',
   },
   {
     icon: <Calendar size={28} />,
     title: 'Rotinas de Estudo',
     desc: 'Monte uma rotina semanal personalizada e mantenha o ritmo de estudos.',
-    color: '#e67e22',
+    color: '#f59e0b',
   },
   {
     icon: <BarChart3 size={28} />,
     title: 'Cronograma Visual',
     desc: 'Visualize tarefas e rotinas em uma view semanal clara e intuitiva.',
-    color: '#3498db',
+    color: '#1e3a8a',
   },
   {
     icon: <FileUp size={28} />,
     title: 'Importação por IA',
     desc: 'Faça upload do seu atestado de matrícula e o sistema monta tudo automaticamente.',
-    color: '#9b59b6',
+    color: '#4c3eff',
   },
   {
     icon: <Target size={28} />,
     title: 'Status Acadêmico',
     desc: 'Acompanhe o status de cada matéria: ativa, aprovada, reprovada ou pendente.',
-    color: '#e74c3c',
+    color: '#ef4444',
   },
 ];
 
@@ -71,8 +71,10 @@ export default function LandingPage() {
       <nav className="landing-nav">
         <div className="landing-nav-inner">
           <div className="landing-logo">
-            <GraduationCap size={24} />
-            <span></span>
+            <div className="landing-logo-mark">
+              <GraduationCap size={16} />
+            </div>
+            <span>StudyHub</span>
           </div>
           <div className="landing-nav-actions">
             <button className="btn-ghost" onClick={() => navigate('/login')}>
@@ -191,8 +193,10 @@ export default function LandingPage() {
       <footer className="landing-footer">
         <div className="footer-inner">
           <div className="landing-logo">
-            <GraduationCap size={18} />
-            <span></span>
+            <div className="landing-logo-mark">
+              <GraduationCap size={14} />
+            </div>
+            <span>StudyHub</span>
           </div>
           <p>Feito para universitários brasileiros.</p>
           <div className="footer-links">

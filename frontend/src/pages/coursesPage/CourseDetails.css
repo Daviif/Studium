@@ -163,7 +163,8 @@
 
 .cd-card-body { display: flex; flex-direction: column; gap: 4px; }
 .cd-card-name { font-size: 14px; font-weight: 700; color: #1a1a1a; margin: 0; line-height: 1.3; }
-.cd-card-meta { display: flex; gap: 8px; font-size: 11px; color: #9ca3af; }
+.cd-card-meta { display: flex; gap: 8px; font-size: 11px; color: #9ca3af; flex-wrap: wrap; }
+.cd-meta-prova { color: #dc2626; font-weight: 600; }
 
 .cd-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
 .cd-type-chip  { font-size: 11px; font-weight: 600; color: #9ca3af; }

@@ -74,10 +74,13 @@
 }
 
 .sc-cell {
-  min-height: 88px; padding: 6px 8px;
+  /* Altura fixa evita que uma célula "cheia" quebre o alinhamento da linha */
+  height: 96px;
+  padding: 6px 8px;
   border-right: 1px solid #f0f0ef; border-bottom: 1px solid #f0f0ef;
   cursor: pointer; display: flex; flex-direction: column; gap: 4px;
   transition: background .1s;
+  overflow: hidden; /* garante que o conteúdo não vaze para fora */
 }
 .sc-cell:nth-child(7n) { border-right: none; }
 .sc-cell-empty { background: #fafafa; cursor: default; }
@@ -92,7 +95,11 @@
 }
 .sc-cell-num-today { background: var(--primary); color: #fff; }
 
-.sc-cell-chips { display: flex; flex-direction: column; gap: 3px; }
+.sc-cell-chips {
+  display: flex; flex-direction: column; gap: 3px;
+  overflow: hidden; /* impede que chips adicionais "estourem" a célula */
+  flex: 1; min-height: 0;
+}
 .sc-chip {
   font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 5px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;

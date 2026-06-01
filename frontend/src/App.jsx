@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, CheckSquare, BarChart3, Flame, Plus, ChevronRight } from 'lucide-react';
 import { coursesApi, subjectsApi, tasksApi, routinesApi, quotesApi } from './services/api';
+import { parseDate } from './utils/dates';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
@@ -54,21 +55,17 @@ function greeting() {
 function fmtHeader(d) {
   return `${DOW_PT[d.getDay()].toUpperCase()}, ${d.getDate()} DE ${MONTHS[d.getMonth()].toUpperCase()}`;
 }
-function daysUntil(iso) {
-  const t=new Date(); t.setHours(0,0,0,0);
-  const d=new Date(iso); d.setHours(0,0,0,0);
-  return Math.ceil((d-t)/86400000);
-}
-
 function Deadline({ iso }) {
   if (!iso) return null;
-  const d = daysUntil(iso);
-  if (d < 0)   return <span className="db db-o">Atrasada</span>;
-  if (d === 0) return <span className="db db-t">Hoje</span>;
-  if (d === 1) return <span className="db db-tm">Amanhã</span>;
-  if (d <= 7)  return <span className="db db-s">em {d} dias</span>;
-  const dt=new Date(iso);
-  return <span className="db db-n">{dt.getDate()} de {MONTHS[dt.getMonth()].slice(0,3).toLowerCase()}.</span>;
+  const d = parseDate(iso);
+  if (!d) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff  = Math.ceil((d - today) / 86400000);
+  if (diff < 0)   return <span className="db db-o">Atrasada</span>;
+  if (diff === 0) return <span className="db db-t">Hoje</span>;
+  if (diff === 1) return <span className="db db-tm">Amanhã</span>;
+  if (diff <= 7)  return <span className="db db-s">em {diff} dias</span>;
+  return <span className="db db-n">{d.getDate()} de {MONTHS[d.getMonth()].slice(0,3).toLowerCase()}.</span>;
 }
 
 export default function App() {
@@ -122,9 +119,9 @@ export default function App() {
   const mon=new Date(now); mon.setDate(now.getDate()-((now.getDay()+6)%7)); mon.setHours(0,0,0,0);
   const sun=new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
 
-  const weekTs   = tasks.filter(t=>t.dueDate&&new Date(t.dueDate)>=mon&&new Date(t.dueDate)<=sun);
+  const weekTs   = tasks.filter(t=>t.dueDate&&parseDate(t.dueDate)>=mon&&parseDate(t.dueDate)<=sun);
   const doneTs   = tasks.filter(t=>t.completed);
-  const todayTs  = tasks.filter(t=>!t.completed&&t.dueDate&&new Date(t.dueDate).toDateString()===now.toDateString());
+  const todayTs  = tasks.filter(t=>!t.completed&&t.dueDate&&parseDate(t.dueDate).toDateString()===now.toDateString());
   const weekPct  = weekTs.length>0 ? Math.round((weekTs.filter(t=>t.completed).length/weekTs.length)*100) : 0;
 
   const doneDates=new Set(doneTs.filter(t=>t.updatedAt).map(t=>new Date(t.updatedAt).toDateString()));
@@ -136,8 +133,8 @@ export default function App() {
   const score=tW>0?((dW/tW)*10).toFixed(1):null;
 
   const in14=new Date(now.getTime()+14*86400000);
-  const upcoming=tasks.filter(t=>!t.completed&&t.dueDate&&new Date(t.dueDate)<=in14)
-    .sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate)).slice(0,8);
+  const upcoming=tasks.filter(t=>!t.completed&&t.dueDate&&parseDate(t.dueDate)<=in14)
+    .sort((a,b)=>parseDate(a.dueDate)-parseDate(b.dueDate)).slice(0,8);
 
   const todayClasses=routines.filter(r=>r.dayOfWeek===todayDOW)
     .sort((a,b)=>a.startTime.localeCompare(b.startTime));

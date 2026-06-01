@@ -248,4 +248,14 @@ export const quotesApi = {
   daily: () => api.get('/quotes/daily'),
 };
 
+// ============================================================================
+// PLANO DE ESTUDOS / REVISÃO POR IA
+// ============================================================================
+export const studyPlanApi = {
+  generate: (fileIds, token) => api.post('/study-plan/generate', { fileIds }, {
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: 60000, // extrai PDFs + chama Groq → pode levar até 1 min
+  }),
+};
+
 export default api;
