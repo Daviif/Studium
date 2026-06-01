@@ -1,0 +1,7 @@
+{
+  "env": {
+    "RENDER_API_KEY": "rnd_4RqF3i0hti7DuejHNe7XCG92UFhy",
+    "RENDER_SERVICE_ID": "srv-d8evj8og4nts738bhu20",
+    "RENDER_BASE_URL": "https://api.render.com/v1"
+  }
+}

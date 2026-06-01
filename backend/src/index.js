@@ -24,8 +24,8 @@ const corsOptions = {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      // Verificar se é um deploy Vercel
-      if (origin && origin.includes('vercel.app')) {
+      // Verificar se é um deploy Vercel ou Render
+      if (origin && (origin.includes('vercel.app') || origin.includes('onrender.com'))) {
         callback(null, true);
       } else {
         console.warn(`❌ Origem não permitida: ${origin}`);
@@ -104,7 +104,8 @@ app.use('/api/files', authenticateToken, filesRouter);
 app.use('/api/professors', authenticateToken, professorsRouter);
 app.use('/api/evaluations', authenticateToken, evaluationsRouter);
 app.use('/api/notifications', authenticateToken, require('./routes/notifications'));
-app.use('/api/enrollment', authenticateToken, require('./routes/enrollment'));
+app.use('/api/enrollment',  authenticateToken, require('./routes/enrollment'));
+app.use('/api/study-plan', authenticateToken, require('./routes/studyplan'));
 // ============================================================================
 // TRATAMENTO DE ERROS GLOBAL
 // ============================================================================

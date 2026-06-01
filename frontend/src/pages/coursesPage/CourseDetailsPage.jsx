@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, BookOpen, Trash2, Wand2, X, History, FileUp, Edit2, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { coursesApi, subjectsApi } from '../../services/api';
+import { coursesApi, subjectsApi, tasksApi } from '../../services/api';
 import EnrollmentUploadModal from '../../components/EnrollmentUploadModal';
 import './CourseDetails.css';
 
@@ -32,6 +32,7 @@ export default function CourseDetailsPage() {
 
   const [course,           setCourse]           = useState(null);
   const [subjects,         setSubjects]         = useState([]);
+  const [taskStats,        setTaskStats]        = useState({}); // { subjectId: { tarefas, provas } }
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState('');
   const [isModalOpen,      setIsModalOpen]      = useState(false);
@@ -52,12 +53,27 @@ export default function CourseDetailsPage() {
   async function load() {
     try {
       setLoading(true); setError('');
-      const [cr, sr] = await Promise.all([
+      const [cr, sr, tr] = await Promise.all([
         coursesApi.get(courseId, token),
         subjectsApi.list(courseId, token),
+        tasksApi.getAllTasks(token).catch(() => ({ data: [] })),
       ]);
       setCourse(cr.data);
-      setSubjects(Array.isArray(sr.data) ? sr.data : []);
+      const subjectList = Array.isArray(sr.data) ? sr.data : [];
+      setSubjects(subjectList);
+
+      // Agrega contagem de tarefas/provas por matéria
+      const subjectIds = new Set(subjectList.map(s => s.id));
+      const stats = {};
+      const allTasks = Array.isArray(tr.data) ? tr.data : [];
+      allTasks.forEach(t => {
+        const sid = t.professorSubject?.subject?.id;
+        if (!sid || !subjectIds.has(sid)) return;
+        if (!stats[sid]) stats[sid] = { tarefas: 0, provas: 0 };
+        if (t.type === 'PROVA') stats[sid].provas++;
+        else stats[sid].tarefas++;
+      });
+      setTaskStats(stats);
     } catch { setError('Não foi possível carregar o curso.'); }
     finally { setLoading(false); }
   }
@@ -269,6 +285,16 @@ export default function CourseDetailsPage() {
                           <div className="cd-card-meta">
                             {subject.period && <span>{subject.period}º per.</span>}
                             <span>{subject.professorSubjects?.length || 0} prof.</span>
+                            {taskStats[subject.id] && (
+                              <>
+                                {taskStats[subject.id].tarefas > 0 && (
+                                  <span>{taskStats[subject.id].tarefas} tarefa{taskStats[subject.id].tarefas !== 1 ? 's' : ''}</span>
+                                )}
+                                {taskStats[subject.id].provas > 0 && (
+                                  <span className="cd-meta-prova">{taskStats[subject.id].provas} prova{taskStats[subject.id].provas !== 1 ? 's' : ''}</span>
+                                )}
+                              </>
+                            )}
                           </div>
                         </div>
 

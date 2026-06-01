@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, AlertCircle, FileText, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { tasksApi } from '../../services/api';
+import { parseDate, isSameDay, fmtDate } from '../../utils/dates';
 import './Schedule.css';
 
 const MONTHS_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -47,7 +48,7 @@ export default function SchedulePage() {
   }
 
   function tasksFor(date) {
-    return tasks.filter(t => t.dueDate && new Date(t.dueDate).toDateString() === date.toDateString());
+    return tasks.filter(t => t.dueDate && isSameDay(t.dueDate, date));
   }
 
   // ── Navigation ─────────────────────────────────────────
@@ -87,8 +88,8 @@ export default function SchedulePage() {
   });
 
   const upcoming = tasks
-    .filter(t => !t.completed && t.dueDate && new Date(t.dueDate) >= today)
-    .sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate))
+    .filter(t => !t.completed && t.dueDate && parseDate(t.dueDate) >= today)
+    .sort((a,b) => parseDate(a.dueDate) - parseDate(b.dueDate))
     .slice(0, 6);
 
   // ── Month data ─────────────────────────────────────────
@@ -258,7 +259,7 @@ export default function SchedulePage() {
                         <div className="sc-side-info">
                           <span className="sc-side-task-name">{t.title}</span>
                           {t.subjectName && <span className="sc-side-task-sub">{t.subjectName}</span>}
-                          <span className="sc-side-task-date">{fmtDay(new Date(t.dueDate))}</span>
+                          <span className="sc-side-task-date">{fmtDate(t.dueDate, {full:true})}</span>
                         </div>
                       </div>
                     );

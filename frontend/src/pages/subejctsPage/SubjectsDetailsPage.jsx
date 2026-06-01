@@ -3,21 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, CheckCircle2, Circle, Calendar,
   Upload, Download, Trash2, Users, Zap, Edit2,
-  FileText, BookOpen, X
+  FileText, BookOpen, X, Sparkles, ChevronDown, Loader2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { subjectsApi, tasksApi, filesApi, routinesApi, evaluationsApi } from '../../services/api';
+import { subjectsApi, tasksApi, filesApi, routinesApi, evaluationsApi, studyPlanApi } from '../../services/api';
 import ProfessorsModal from '../../components/ProfessorsModal';
+import { parseDate, fmtDate, daysUntil } from '../../utils/dates';
 import './SubjectsDetails.css';
-
-const MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
 function taskStatus(dueDate, completed) {
   if (completed) return { cls: 'sd-completed', label: 'Concluída' };
   if (!dueDate)  return { cls: '', label: '' };
-  const today = new Date(); today.setHours(0,0,0,0);
-  const due   = new Date(dueDate); due.setHours(0,0,0,0);
-  const d = Math.ceil((due - today) / 86400000);
+  const d = daysUntil(dueDate);
+  if (d === null) return { cls: '', label: '' };
   if (d < 0)  return { cls: 'sd-overdue',  label: `${Math.abs(d)}d atrasada` };
   if (d === 0) return { cls: 'sd-today',   label: 'Hoje!' };
   if (d === 1) return { cls: 'sd-tomorrow',label: 'Amanhã' };
@@ -25,10 +23,7 @@ function taskStatus(dueDate, completed) {
   return { cls: '', label: '' };
 }
 
-function fmtDate(iso) {
-  const d = new Date(iso);
-  return `${d.getDate()} de ${MONTHS[d.getMonth()]}.`;
-}
+// fmtDate importada de utils/dates — usa parseDate internamente
 
 const TYPE_STYLE = {
   TRABALHO:  { label: 'Trabalho',  bg: '#fef3c7', color: '#92400e' },
@@ -59,9 +54,19 @@ export default function SubjectDetailsPage() {
   const [selProva,   setSelProva]   = useState(null);
   const [editTaskId, setEditTaskId] = useState(null);
 
+  const [editProvaId, setEditProvaId] = useState(null);
+
   const [taskForm, setTaskForm] = useState({ title:'', description:'', dueDate:'', weight:1.0, type:'ATIVIDADE' });
   const [provaForm,setProvaForm] = useState({ title:'', description:'', dueDate:'', weight:1.0, type:'PROVA' });
   const [uploadData,setUploadData]= useState({ file:null, customName:'' });
+
+  // Plano de revisão por IA
+  const [reviewModal,    setReviewModal]    = useState(false);
+  const [selectedFiles,  setSelectedFiles]  = useState(new Set());
+  const [reviewLoading,  setReviewLoading]  = useState(false);
+  const [reviewResult,   setReviewResult]   = useState(null);
+  const [reviewError,    setReviewError]    = useState('');
+  const [openQuestion,   setOpenQuestion]   = useState(null);
 
   useEffect(() => { loadSubject(); }, [subjectId, token]);
   useEffect(() => { if (selPS) loadData(); }, [selPS]);
@@ -127,17 +132,27 @@ export default function SubjectDetailsPage() {
     catch { setError('Erro ao deletar.'); }
   }
 
+  function openEditProva(prova) {
+    setEditProvaId(prova.id);
+    setProvaForm({ title: prova.title, description: prova.description || '', dueDate: prova.dueDate ? prova.dueDate.split('T')[0] : '', weight: prova.weight ?? 1.0, type: 'PROVA' });
+    setProvaModal(true);
+  }
+
   // Provas
   async function handleSaveProva(e) {
     e.preventDefault();
     if (!provaForm.title.trim()) { setError('Título é obrigatório.'); return; }
     try {
       setIsSaving(true); setError('');
-      await tasksApi.create({ ...provaForm, type:'PROVA', professorSubjectId: selPS.id }, token);
-      setProvaModal(false);
+      if (editProvaId) {
+        await tasksApi.update(editProvaId, { title: provaForm.title, description: provaForm.description, dueDate: provaForm.dueDate || null, weight: provaForm.weight, type: 'PROVA' }, token);
+      } else {
+        await tasksApi.create({ ...provaForm, type:'PROVA', professorSubjectId: selPS.id }, token);
+      }
+      setProvaModal(false); setEditProvaId(null);
       setProvaForm({ title:'', description:'', dueDate:'', weight:1.0, type:'PROVA' });
       await loadData();
-    } catch { setError('Erro ao criar prova.'); }
+    } catch { setError('Erro ao salvar prova.'); }
     finally { setIsSaving(false); }
   }
 
@@ -334,14 +349,21 @@ export default function SubjectDetailsPage() {
                     const hasGrade = !!prova.evaluation;
                     const pct = hasGrade ? Math.round((prova.evaluation.grade / prova.evaluation.maxGrade) * 100) : null;
                     return (
-                      <div key={prova.id} className="sd-prova-card">
+                      <div key={prova.id} className={`sd-prova-card ${prova.completed ? 'sd-prova-done' : ''}`}>
                         <div className="sd-prova-top">
                           <h3 className="sd-prova-title">{prova.title}</h3>
                           <div className="sd-prova-btns">
                             <button
+                              className={`sd-icon-btn ${prova.completed ? 'sd-icon-check-done' : ''}`}
+                              onClick={() => toggleTask(prova.id, prova.completed)}
+                              title={prova.completed ? 'Desmarcar prova' : 'Marcar como feita'}
+                            >
+                              {prova.completed ? <CheckCircle2 size={13}/> : <Circle size={13}/>}
+                            </button>
+                            <button
                               className="sd-icon-btn"
-                              onClick={() => { setSelProva(prova); setEvalModal(true); }}
-                              title={hasGrade ? 'Editar nota' : 'Adicionar nota'}
+                              onClick={() => openEditProva(prova)}
+                              title="Editar prova"
                             >
                               <Edit2 size={13}/>
                             </button>
@@ -370,6 +392,13 @@ export default function SubjectDetailsPage() {
                             <span className="sd-grade-label" style={{color: pct >= 60 ? '#15803d' : pct >= 40 ? '#92400e' : '#991b1b'}}>
                               {prova.evaluation.grade}/{prova.evaluation.maxGrade}
                             </span>
+                            <button
+                              className="sd-icon-btn sd-icon-grade-edit"
+                              onClick={() => { setSelProva(prova); setEvalModal(true); }}
+                              title="Editar nota"
+                            >
+                              <Edit2 size={11}/>
+                            </button>
                           </div>
                         ) : (
                           <button className="sd-add-grade-btn" onClick={() => { setSelProva(prova); setEvalModal(true); }}>
@@ -390,6 +419,14 @@ export default function SubjectDetailsPage() {
                   <h2>Arquivos</h2>
                   <span className="sd-count">{files.length}</span>
                 </div>
+                {files.some(f => f.name?.toLowerCase().endsWith('.pdf') || f.url?.toLowerCase().includes('.pdf')) && (
+                  <button
+                    className="sd-review-trigger"
+                    onClick={() => { setReviewModal(true); setReviewResult(null); setReviewError(''); setSelectedFiles(new Set()); }}
+                  >
+                    <Sparkles size={14}/> Gerar Revisão IA
+                  </button>
+                )}
               </div>
 
               {files.length === 0 ? (
@@ -470,13 +507,13 @@ export default function SubjectDetailsPage() {
         </div>
       )}
 
-      {/* ── Modal: Nova Prova ── */}
+      {/* ── Modal: Nova/Editar Prova ── */}
       {provaModal && (
-        <div className="sd-overlay" onClick={() => !isSaving && setProvaModal(false)}>
+        <div className="sd-overlay" onClick={() => !isSaving && (setProvaModal(false), setEditProvaId(null))}>
           <div className="sd-modal" onClick={e => e.stopPropagation()}>
             <div className="sd-modal-hdr">
-              <h2>Nova Prova</h2>
-              <button className="sd-modal-close" onClick={() => setProvaModal(false)}><X size={16}/></button>
+              <h2>{editProvaId ? 'Editar Prova' : 'Nova Prova'}</h2>
+              <button className="sd-modal-close" onClick={() => { setProvaModal(false); setEditProvaId(null); }}><X size={16}/></button>
             </div>
             <p className="sd-modal-sub">Prof. {selPS?.professor.name}</p>
             <form onSubmit={handleSaveProva}>
@@ -495,8 +532,8 @@ export default function SubjectDetailsPage() {
                 <textarea value={provaForm.description} onChange={e=>setProvaForm(p=>({...p,description:e.target.value}))} placeholder="Conteúdo cobrado…" disabled={isSaving}/>
               </div>
               <div className="sd-modal-actions">
-                <button type="button" className="sd-btn-cancel" onClick={() => setProvaModal(false)}>Cancelar</button>
-                <button type="submit" className="sd-btn-save" disabled={isSaving}>{isSaving ? 'Salvando…' : 'Criar Prova'}</button>
+                <button type="button" className="sd-btn-cancel" onClick={() => { setProvaModal(false); setEditProvaId(null); }}>Cancelar</button>
+                <button type="submit" className="sd-btn-save" disabled={isSaving}>{isSaving ? 'Salvando…' : editProvaId ? 'Salvar' : 'Criar Prova'}</button>
               </div>
             </form>
           </div>
@@ -566,6 +603,137 @@ export default function SubjectDetailsPage() {
           </div>
         </div>
       )}
+      {/* ── Modal: Revisão por IA ── */}
+      {reviewModal && (
+        <div className="sd-overlay" onClick={() => !reviewLoading && setReviewModal(false)}>
+          <div className="sd-modal sd-review-modal" onClick={e => e.stopPropagation()}>
+
+            {/* Seleção de arquivos */}
+            {!reviewResult && !reviewLoading && (
+              <>
+                <div className="sd-modal-hdr">
+                  <div className="sd-review-hdr-left">
+                    <Sparkles size={17}/>
+                    <h2>Gerar Revisão com IA</h2>
+                  </div>
+                  <button className="sd-modal-close" onClick={() => setReviewModal(false)}><X size={16}/></button>
+                </div>
+                <p className="sd-modal-sub">
+                  Selecione os PDFs que deseja usar. O sistema extrairá os conceitos principais e gerará questões de revisão.
+                </p>
+
+                {reviewError && <div className="sd-review-error">{reviewError}</div>}
+
+                <div className="sd-review-file-list">
+                  {files.filter(f => f.name?.toLowerCase().endsWith('.pdf') || f.url?.toLowerCase().includes('.pdf')).map(f => (
+                    <label key={f.id} className={`sd-review-file-row ${selectedFiles.has(f.id) ? 'selected' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.has(f.id)}
+                        onChange={() => {
+                          setSelectedFiles(prev => {
+                            const next = new Set(prev);
+                            next.has(f.id) ? next.delete(f.id) : next.add(f.id);
+                            return next;
+                          });
+                        }}
+                        style={{ accentColor: 'var(--primary)' }}
+                      />
+                      <FileText size={15}/>
+                      <span>{f.name}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="sd-modal-actions">
+                  <button className="sd-btn-cancel" onClick={() => setReviewModal(false)}>Cancelar</button>
+                  <button
+                    className="sd-btn-save"
+                    disabled={selectedFiles.size === 0}
+                    onClick={async () => {
+                      setReviewLoading(true); setReviewError('');
+                      try {
+                        const res = await studyPlanApi.generate([...selectedFiles], token);
+                        setReviewResult(res.data);
+                        setOpenQuestion(null);
+                      } catch (err) {
+                        setReviewError(err?.response?.data?.error || 'Erro ao gerar revisão. Tente novamente.');
+                        setReviewLoading(false);
+                      }
+                    }}
+                  >
+                    <Sparkles size={14}/> Gerar Revisão
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Loading */}
+            {reviewLoading && !reviewResult && (
+              <div className="sd-review-loading">
+                <Loader2 size={44} className="sd-review-spin"/>
+                <p>Analisando PDFs e gerando revisão…</p>
+                <span>Isso pode levar até 30 segundos</span>
+              </div>
+            )}
+
+            {/* Resultado */}
+            {reviewResult && (
+              <>
+                <div className="sd-modal-hdr">
+                  <div className="sd-review-hdr-left">
+                    <Sparkles size={17}/>
+                    <h2>Revisão Gerada</h2>
+                  </div>
+                  <button className="sd-modal-close" onClick={() => setReviewModal(false)}><X size={16}/></button>
+                </div>
+
+                {/* Resumo */}
+                <div className="sd-review-summary">
+                  <p className="sd-review-section-label">RESUMO DOS CONCEITOS</p>
+                  <p className="sd-review-summary-text">{reviewResult.summary}</p>
+                </div>
+
+                {/* Questões */}
+                <div className="sd-review-questions">
+                  <p className="sd-review-section-label">QUESTÕES DE REVISÃO ({reviewResult.questions.length})</p>
+                  {reviewResult.questions.map((q, i) => (
+                    <div key={i} className="sd-review-qa">
+                      <button
+                        className="sd-review-question"
+                        onClick={() => setOpenQuestion(openQuestion === i ? null : i)}
+                      >
+                        <span className="sd-qa-num">{i + 1}</span>
+                        <span className="sd-qa-text">{q.question}</span>
+                        <ChevronDown
+                          size={16}
+                          className={`sd-qa-chevron ${openQuestion === i ? 'open' : ''}`}
+                        />
+                      </button>
+                      {openQuestion === i && (
+                        <div className="sd-review-answer">
+                          {q.answer}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="sd-modal-actions" style={{marginTop: 16}}>
+                  <button className="sd-btn-cancel" onClick={() => { setReviewResult(null); setReviewLoading(false); }}>
+                    ← Voltar
+                  </button>
+                  <button className="sd-btn-cancel" onClick={() => setReviewModal(false)}>
+                    Fechar
+                  </button>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
